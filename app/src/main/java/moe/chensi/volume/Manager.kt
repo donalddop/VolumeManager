@@ -82,6 +82,14 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
         }
     }
 
+    private fun findAppByUid(uid: Int): App? {
+        if (uid < android.os.Process.FIRST_APPLICATION_UID) return null // system audio, leave alone
+        val matches = apps.values.filter { it.applicationInfo.uid == uid }
+            .ifEmpty { apps.values.filter { it.applicationInfo.uid % 100_000 == uid % 100_000 } }
+        // Shared UIDs map to several packages; only act when it's unambiguous
+        return matches.singleOrNull()
+    }
+
     private fun getApp(packageName: String): App? {
         val app = apps[packageName]
         if (app != null) {
@@ -121,10 +129,14 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
             val proxy = AudioPlaybackConfigurationProxy(config)
 
             val pid = proxy.clientPid
-            val process = runningProcesses.find { process -> process.pid == pid } ?: continue
+            val process = runningProcesses.find { process -> process.pid == pid }
 
-            val packageName = process.pkgList[0] ?: continue
-            val app = getApp(packageName) ?: continue
+            // Prefer the process list, but fall back to the player's UID: a process that just
+            // started is often missing from runningAppProcesses, and then its player was
+            // silently skipped and played at 100% until the next callback.
+            val app = process?.pkgList?.firstOrNull()?.let { getApp(it) }
+                ?: findAppByUid(proxy.clientUid)
+                ?: continue
 
             app.addPlayer(proxy)
         }

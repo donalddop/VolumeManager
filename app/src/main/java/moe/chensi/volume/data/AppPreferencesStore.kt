@@ -76,6 +76,13 @@ class AppPreferencesStore(private val dataStore: DataStore<Preferences>) {
 
         scope.launch {
             dataStore.data.collect { preferences ->
+                // This process is the only writer, so every later emission is just the echo
+                // of our own save(). Re-decoding it replaced the live objects with an older
+                // snapshot, which silently reverted volumes. Only load from disk once.
+                if (!first) {
+                    return@collect
+                }
+
                 val valueJson = preferences[key]
                 if (valueJson != null) {
                     synchronized(lock) {
@@ -106,8 +113,9 @@ class AppPreferencesStore(private val dataStore: DataStore<Preferences>) {
 
     fun save() {
         scope.launch {
+            val encoded = synchronized(lock) { Json.encodeToString(state) }
             dataStore.edit { preferences ->
-                preferences[key] = Json.encodeToString(state)
+                preferences[key] = encoded
             }
         }
     }
