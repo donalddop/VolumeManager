@@ -94,6 +94,10 @@ data class App(
             }
 
         val scope = CoroutineScope(Dispatchers.IO)
+
+        // Single thread so volume updates are applied in order and never pile up.
+        @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+        private val applyScope = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
     }
 
     val packageName: String
@@ -124,7 +128,19 @@ data class App(
             return _icon
         }
 
+    init {
+        migratePreferences(preferences)
+    }
+
+    private fun migratePreferences(value: AppPreferences) {
+        if (value.curveVersion < VolumeCurve.CURRENT_VERSION) {
+            value.volume = VolumeCurve.gainToPosition(value.volume)
+            value.curveVersion = VolumeCurve.CURRENT_VERSION
+        }
+    }
+
     fun setPreferences(value: AppPreferences) {
+        migratePreferences(value)
         preferences = value
 
         _volume = preferences.volume
@@ -154,7 +170,7 @@ data class App(
         )
 
         // Apply volume to potentially new player
-        if (!config.setVolume(_volume)) {
+        if (!config.setVolume(VolumeCurve.positionToGain(_volume))) {
             // Player is dead, don't add it
             return
         }
@@ -166,15 +182,39 @@ data class App(
         }
     }
 
-    fun applyVolume(value: Float) {
-        val deadPlayers = mutableListOf<AudioPlaybackConfigurationProxy>()
-        for (player in players) {
-            if (!player.setVolume(value)) {
-                deadPlayers.add(player)
+    // Latest requested slider position; NaN = nothing pending.
+    private val pendingPosition = java.util.concurrent.atomic.AtomicReference(Float.NaN)
+
+    /**
+     * Binder IPC to every player is slow-ish, so never do it on the UI thread.
+     * If the user drags faster than we can apply, intermediate values are dropped
+     * and only the newest one is sent ("latest wins").
+     */
+    fun applyVolume(position: Float) {
+        if (!pendingPosition.getAndSet(position).isNaN()) {
+            return // a job is already queued and will pick up the new value
+        }
+        applyScope.launch {
+            val value = pendingPosition.getAndSet(Float.NaN)
+            if (value.isNaN()) return@launch
+            val gain = VolumeCurve.positionToGain(value)
+            val snapshot = players.toList()
+            val dead = snapshot.filterNot { it.setVolume(gain) }
+            if (dead.isNotEmpty()) {
+                kotlinx.coroutines.withContext(Dispatchers.Main) { _players.removeAll(dead) }
             }
         }
-        // Remove dead players
-        _players.removeAll(deadPlayers)
+    }
+
+    private var saveJob: Job? = null
+
+    /** Writing all prefs as JSON on every drag frame is wasteful; save once the finger settles. */
+    private fun saveSoon() {
+        saveJob?.cancel()
+        saveJob = scope.launch {
+            delay(400)
+            savePreferences()
+        }
     }
 
     private var _isPlayer by mutableStateOf(preferences.isPlayer)
@@ -240,7 +280,7 @@ data class App(
 
             _volume = value
             preferences.volume = value
-            savePreferences()
+            saveSoon()
         }
 
     private var _hidden by mutableStateOf(preferences.hidden)

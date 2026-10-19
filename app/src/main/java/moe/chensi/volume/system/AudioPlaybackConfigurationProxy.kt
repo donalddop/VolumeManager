@@ -55,7 +55,24 @@ class AudioPlaybackConfigurationProxy(raw: AudioPlaybackConfiguration) {
             return playerState == PlayerState.Started
         }
 
+    // Look the method up once instead of on every call (jOOR re-resolves each time).
+    private val setVolumeMethod: java.lang.reflect.Method? by lazy {
+        player.get<Any>()?.javaClass?.runCatching {
+            getMethod("setVolume", Float::class.javaPrimitiveType)
+        }?.getOrNull()
+    }
+
     fun setVolume(value: Float): Boolean {
+        val target = player.get<Any>() ?: return false
+        val method = setVolumeMethod
+        if (method != null) {
+            return try {
+                method.invoke(target, value)
+                true
+            } catch (e: InvocationTargetException) {
+                if (e.cause is DeadObjectException) false else throw e
+            }
+        }
         return try {
             player.call("setVolume", value)
             true

@@ -2,6 +2,11 @@ package moe.chensi.volume.compose
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,6 +46,7 @@ fun TrackSlider(
     val coercedValue = value.coerceIn(valueRange.start, valueRange.endInclusive)
     val latestValue by rememberUpdatedState(coercedValue)
     val density = LocalDensity.current
+    val haptics = LocalHapticFeedback.current
     val cornerRadiusPx = with(density) { cornerRadius.toPx() }
 
     val fillWidthPercentage =
@@ -61,21 +67,31 @@ fun TrackSlider(
             .background(trackColor)
             .pointerInput(enabled) {
                 if (enabled) {
-                    var startValue = 0f
-                    var startX = 0f
+                    // Direct control: the finger position IS the value. Tap jumps, drag follows.
+                    fun valueAt(x: Float): Float {
+                        val fraction = (x / size.width.toFloat()).coerceIn(0f, 1f)
+                        return valueRange.start + fraction * (valueRange.endInclusive - valueRange.start)
+                    }
 
-                    detectHorizontalDragGestures(onDragStart = { offset ->
-                        startValue = latestValue
-                        startX = offset.x
-                    }) { change, _ ->
-                        val dragAmount = change.position.x - startX
-                        val changedPercentage = dragAmount / size.width.toFloat()
-                        val totalRange = valueRange.endInclusive - valueRange.start
-                        val newValue = (startValue + changedPercentage * totalRange)
-                        val coercedNewValue =
-                            newValue.coerceIn(valueRange.start, valueRange.endInclusive)
-                        if (coercedNewValue != latestValue) {
-                            onValueChange(coercedNewValue)
+                    fun emit(x: Float) {
+                        val newValue = valueAt(x)
+                        if (newValue != latestValue) {
+                            val hitEdge = (newValue == valueRange.start || newValue == valueRange.endInclusive) &&
+                                latestValue != newValue
+                            onValueChange(newValue)
+                            if (hitEdge) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                    }
+
+                    coroutineScope {
+                        launch { detectTapGestures(onTap = { offset -> emit(offset.x) }) }
+                        launch {
+                            detectHorizontalDragGestures(
+                                onDragStart = { offset -> emit(offset.x) }
+                            ) { change, _ ->
+                                change.consume()
+                                emit(change.position.x)
+                            }
                         }
                     }
                 }
