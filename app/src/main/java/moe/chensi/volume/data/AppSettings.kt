@@ -48,8 +48,8 @@ class AppSettings(private val prefs: SharedPreferences) {
     }
 
     // ---- Popup panel ----
-    /** Seconds before the panel hides itself. */
-    val panelTimeoutSec = IntSetting("panel_timeout_sec", 5, 1, 30)
+    /** Milliseconds before the panel hides itself (1-5 s, ms precision). */
+    val panelTimeoutMs = IntSetting("panel_timeout_ms", 5000, 1000, 5000)
     /** Fade in/out duration. 0 = instant. */
     val panelAnimationMs = IntSetting("panel_animation_ms", 300, 0, 800, 50)
     /** UI scale of the panel content in percent. */
@@ -89,7 +89,7 @@ class AppSettings(private val prefs: SharedPreferences) {
     val floatingCollapsedOpacityPct = IntSetting("floating_collapsed_opacity_pct", 50, 10, 100, 5)
 
     val all: List<Any> = listOf(
-        panelTimeoutSec, panelAnimationMs, panelScalePct, panelWidthPct, panelMaxHeightPct,
+        panelTimeoutMs, panelAnimationMs, panelScalePct, panelWidthPct, panelMaxHeightPct,
         panelHorizontalAnchor, panelVerticalAnchor, panelOffsetXDp, panelOffsetYDp,
         panelBackgroundPct, panelBlur, panelHideOnOutsideTouch,
         keysIgnoreScreenOff, keysIgnoreLockScreen, keysIgnoreInCall, keysFirstPressAdjusts,

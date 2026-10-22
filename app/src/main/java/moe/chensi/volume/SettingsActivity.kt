@@ -80,7 +80,7 @@ class SettingsActivity : ComponentActivity() {
                     s.panelScalePct.flow, s.panelWidthPct.flow, s.panelMaxHeightPct.flow,
                     s.panelHorizontalAnchor.flow, s.panelVerticalAnchor.flow,
                     s.panelOffsetXDp.flow, s.panelOffsetYDp.flow, s.panelBackgroundPct.flow,
-                    s.panelTimeoutSec.flow,
+                    s.panelTimeoutMs.flow,
                 ).drop(9) // skip the initial value of each StateFlow
                     .collect { showPreview() }
             }
@@ -138,7 +138,7 @@ class SettingsActivity : ComponentActivity() {
                         // ---------- Panel ----------
                         item { Section(stringResource(R.string.settings_section_panel)) }
                         item {
-                            IntSlider(stringResource(R.string.settings_panel_timeout), s.panelTimeoutSec) { "$it s" }
+                            IntSlider(stringResource(R.string.settings_panel_timeout), s.panelTimeoutMs) { "$it ms" }
                         }
                         item {
                             IntSlider(stringResource(R.string.settings_panel_animation), s.panelAnimationMs) {

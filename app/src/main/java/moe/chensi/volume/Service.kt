@@ -115,7 +115,7 @@ class Service : AccessibilityService() {
 
         fun startIdleTimer() {
             removeCallbacks(hideViewRunnable)
-            postDelayed(hideViewRunnable, app.settings.panelTimeoutSec.value * 1000L)
+            postDelayed(hideViewRunnable, app.settings.panelTimeoutMs.value.toLong())
         }
 
         private var repeatAdjustVolumeDirection = 0
