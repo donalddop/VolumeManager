@@ -43,6 +43,10 @@ class MyApplication : Application() {
     private val _systemVolumeButtonHooksEnabled = MutableStateFlow(true)
     val systemVolumeButtonHooksEnabled = _systemVolumeButtonHooksEnabled.asStateFlow()
 
+    val settings by lazy {
+        moe.chensi.volume.data.AppSettings(getSharedPreferences("settings", MODE_PRIVATE))
+    }
+
     val manager by lazy {
         Manager(this, dataStore)
     }

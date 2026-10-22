@@ -20,6 +20,16 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.Gravity
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import kotlinx.coroutines.flow.merge
+import kotlin.math.roundToInt
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
@@ -62,17 +72,14 @@ import java.util.Objects
 class Service : AccessibilityService() {
     companion object {
         const val ACTION_SHOW_VIEW = "moe.chensi.volume.ACTION_SHOW_VIEW"
+        /** Boolean extra: show the panel as a non-interactive live preview (settings screen). */
+        const val EXTRA_PREVIEW = "preview"
 
         private const val TAG = "VolumeManager.Service"
 
         private const val NOTIFICATION_CHANNEL_ID = "service"
         private const val NOTIFICATION_ID = 1
 
-        private const val ANIMATION_DURATION = 300L
-
-        private const val IDLE_TIMEOUT = 5000L
-        private const val AUTO_REPEAT_DELAY = 100L
-        private const val AUTO_REPEAT_INITIAL_DELAY = 500L
     }
 
     private val windowManager: WindowManager by lazy {
@@ -90,7 +97,7 @@ class Service : AccessibilityService() {
         fun hideView() {
             if (viewVisible) {
                 Log.i(TAG, "animate out")
-                animateAlpha(layoutParams.alpha, 0f, ANIMATION_DURATION) {
+                animateAlpha(layoutParams.alpha, 0f, animationMs) {
                     if (!viewVisible) {
                         Log.i(TAG, "remove view")
                         view!!.background = null
@@ -100,6 +107,7 @@ class Service : AccessibilityService() {
                     }
                 }
                 viewVisible = false
+                setPreviewMode(false)
             }
         }
 
@@ -107,29 +115,38 @@ class Service : AccessibilityService() {
 
         fun startIdleTimer() {
             removeCallbacks(hideViewRunnable)
-            postDelayed(hideViewRunnable, IDLE_TIMEOUT)
+            postDelayed(hideViewRunnable, app.settings.panelTimeoutSec.value * 1000L)
         }
 
         private var repeatAdjustVolumeDirection = 0
         private val repeatAdjustVolumeRunnable: Runnable = Runnable {
             adjustVolume()
-            postDelayed(repeatAdjustVolumeRunnable, AUTO_REPEAT_DELAY)
+            postDelayed(repeatAdjustVolumeRunnable, app.settings.keysRepeatIntervalMs.value.toLong())
         }
 
         private fun adjustVolume() {
-            manager.audioManager.adjustSuggestedStreamVolume(
-                repeatAdjustVolumeDirection, AudioManager.USE_DEFAULT_STREAM_TYPE, 0
-            )
+            if (app.settings.keysAlwaysMedia.value) {
+                manager.audioManager.adjustStreamVolume(
+                    AudioManager.STREAM_MUSIC, repeatAdjustVolumeDirection, 0
+                )
+            } else {
+                manager.audioManager.adjustSuggestedStreamVolume(
+                    repeatAdjustVolumeDirection, AudioManager.USE_DEFAULT_STREAM_TYPE, 0
+                )
+            }
             VolumeChangeObserver.notifyVolumeChanged()
             startIdleTimer()
         }
 
         fun startRepeatAdjustVolume(direction: Int) {
             repeatAdjustVolumeDirection = direction
-            if (view != null) {
+            if (view != null || app.settings.keysFirstPressAdjusts.value) {
                 adjustVolume()
             }
-            postDelayed(repeatAdjustVolumeRunnable, AUTO_REPEAT_INITIAL_DELAY)
+            postDelayed(
+                repeatAdjustVolumeRunnable,
+                app.settings.keysRepeatInitialDelayMs.value.toLong()
+            )
         }
 
         fun stopRepeatAdjustVolume() {
@@ -171,7 +188,7 @@ class Service : AccessibilityService() {
 
                 Log.i(TAG, "onAttachedToWindow manufacturer: ${Build.MANUFACTURER}")
 
-                @Suppress("SpellCheckingInspection") if (windowManager.isCrossWindowBlurEnabled && isHardwareAccelerated && Build.MANUFACTURER != "realme") {
+                @Suppress("SpellCheckingInspection") if (app.settings.panelBlur.value && windowManager.isCrossWindowBlurEnabled && isHardwareAccelerated && Build.MANUFACTURER != "realme") {
                     background =
                         Reflect.on(rootSurfaceControl).call("createBackgroundBlurDrawable").apply {
                             call("setBlurRadius", 200)
@@ -187,7 +204,9 @@ class Service : AccessibilityService() {
                 Log.i(TAG, "onTouchEvent ${event.actionMasked}")
 
                 if (event.actionMasked == MotionEvent.ACTION_OUTSIDE) {
-                    this@Service.handler.hideView()
+                    if (!previewMode && app.settings.panelHideOnOutsideTouch.value) {
+                        this@Service.handler.hideView()
+                    }
                     return true
                 }
 
@@ -196,12 +215,33 @@ class Service : AccessibilityService() {
 
             @Composable
             override fun Content() {
+                val settings = app.settings
+                val scalePct by settings.panelScalePct.flow.collectAsState()
+                val backgroundPct by settings.panelBackgroundPct.flow.collectAsState()
+                val widthPct by settings.panelWidthPct.flow.collectAsState()
+                val maxHeightPct by settings.panelMaxHeightPct.flow.collectAsState()
+                val screenHeightDp = LocalConfiguration.current.screenHeightDp
+
                 return VolumeManagerTheme {
                     Surface(
-                        color = Color(1f, 1f, 1f, 0.3f),
+                        modifier = Modifier
+                            .then(if (widthPct > 0) Modifier.fillMaxWidth() else Modifier)
+                            .then(
+                                if (maxHeightPct > 0) {
+                                    Modifier.heightIn(max = (screenHeightDp * maxHeightPct / 100).dp)
+                                } else Modifier
+                            ),
+                        color = Color(1f, 1f, 1f, backgroundPct / 100f),
                         contentColor = MaterialTheme.colorScheme.onSurface,
                         shape = RoundedCornerShape(40f)
                     ) {
+                      val baseDensity = LocalDensity.current
+                      CompositionLocalProvider(
+                          LocalDensity provides Density(
+                              baseDensity.density * scalePct / 100f,
+                              baseDensity.fontScale
+                          )
+                      ) {
                         Column(
                             modifier = Modifier.padding(20.dp, 16.dp)
                         ) {
@@ -224,6 +264,7 @@ class Service : AccessibilityService() {
                                 }
                             }
                         }
+                      }
                     }
                 }
             }
@@ -242,11 +283,55 @@ class Service : AccessibilityService() {
         }
     }
 
+    private val animationMs: Long get() = app.settings.panelAnimationMs.value.toLong()
+
+    /** Position, anchor and width from settings. Safe to call any time; updates a live view. */
+    private fun applyPanelLayout() {
+        val s = app.settings
+        val dm = resources.displayMetrics
+        val hAnchor = s.panelHorizontalAnchor.value
+        val vAnchor = s.panelVerticalAnchor.value
+        layoutParams.gravity = when (hAnchor) {
+            0 -> Gravity.LEFT
+            2 -> Gravity.RIGHT
+            else -> Gravity.CENTER_HORIZONTAL
+        } or when (vAnchor) {
+            0 -> Gravity.TOP
+            2 -> Gravity.BOTTOM
+            else -> Gravity.CENTER_VERTICAL
+        }
+        // For RIGHT/BOTTOM the window offset points inwards; flip so + is always right/down.
+        val xPx = (s.panelOffsetXDp.value * dm.density).roundToInt()
+        val yPx = (s.panelOffsetYDp.value * dm.density).roundToInt()
+        layoutParams.x = if (hAnchor == 2) -xPx else xPx
+        layoutParams.y = if (vAnchor == 2) -yPx else yPx
+        val widthPct = s.panelWidthPct.value
+        layoutParams.width = if (widthPct > 0) {
+            dm.widthPixels * widthPct / 100
+        } else WindowManager.LayoutParams.WRAP_CONTENT
+        view?.let { windowManager.updateViewLayout(it, layoutParams) }
+    }
+
+    /** Preview = touches fall through to the settings screen underneath, no outside-dismiss. */
+    private var previewMode = false
+    private fun setPreviewMode(enabled: Boolean) {
+        if (previewMode == enabled) return
+        previewMode = enabled
+        layoutParams.flags = if (enabled) {
+            layoutParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        } else {
+            layoutParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+        }
+        view?.let { windowManager.updateViewLayout(it, layoutParams) }
+    }
+
     private var view: View? = null
     private var viewVisible = false
     private var floatingButton: FloatingButton? = null
 
-    private fun showView() {
+    private fun showView(preview: Boolean = false) {
+        setPreviewMode(preview)
+        applyPanelLayout()
         if (view == null) {
             Log.i(TAG, "add view")
             // The view doesn't respond to input events if reused
@@ -257,7 +342,7 @@ class Service : AccessibilityService() {
 
         if (!viewVisible) {
             Log.i(TAG, "animate in")
-            animateAlpha(layoutParams.alpha, 1f, ANIMATION_DURATION)
+            animateAlpha(layoutParams.alpha, 1f, animationMs)
             viewVisible = true
         }
 
@@ -327,7 +412,7 @@ class Service : AccessibilityService() {
         override fun onReceive(context: Context, intent: Intent) {
             Log.i(TAG, "onReceive ${intent.action}")
             if (intent.action == ACTION_SHOW_VIEW) {
-                showView()
+                showView(preview = intent.getBooleanExtra(EXTRA_PREVIEW, false))
             }
         }
     }
@@ -351,6 +436,13 @@ class Service : AccessibilityService() {
             }.collect { (enabled, sizeDp) ->
                 setFloatingButtonPreferences(enabled, sizeDp)
             }
+        }
+        scope.launch {
+            val st = app.settings
+            merge(
+                st.panelHorizontalAnchor.flow, st.panelVerticalAnchor.flow,
+                st.panelOffsetXDp.flow, st.panelOffsetYDp.flow, st.panelWidthPct.flow
+            ).collect { applyPanelLayout() }
         }
         scope.launch {
             app.systemVolumeButtonHooksEnabled.collect { enabled ->
@@ -424,6 +516,8 @@ class Service : AccessibilityService() {
     }
 
     val activityTaskManager by lazy { ActivityTaskManagerProxy(this) }
+    private val powerManager by lazy { getSystemService(android.os.PowerManager::class.java)!! }
+    private val keyguardManager by lazy { getSystemService(android.app.KeyguardManager::class.java)!! }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
         Log.i(
@@ -445,6 +539,21 @@ class Service : AccessibilityService() {
 
         // Ignore if Shizuku is not ready
         if (manager.shizukuStatus != Manager.ShizukuStatus.Connected) {
+            return false
+        }
+
+        // User-configurable "leave it to the system" situations
+        val settings = app.settings
+        val passToSystem =
+            (settings.keysIgnoreScreenOff.value && !powerManager.isInteractive) ||
+                (settings.keysIgnoreLockScreen.value && keyguardManager.isKeyguardLocked) ||
+                (settings.keysIgnoreInCall.value && manager.audioManager.mode.let {
+                    it == AudioManager.MODE_IN_CALL || it == AudioManager.MODE_IN_COMMUNICATION
+                })
+        if (passToSystem) {
+            if (event.action == KeyEvent.ACTION_UP) {
+                handler.stopRepeatAdjustVolume()
+            }
             return false
         }
 

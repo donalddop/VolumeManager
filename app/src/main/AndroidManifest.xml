@@ -37,6 +37,11 @@
         </activity>
 
         <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.VolumeManager" />
+
+        <activity
             android:name=".PopupActivity"
             android:excludeFromRecents="true"
             android:exported="true"

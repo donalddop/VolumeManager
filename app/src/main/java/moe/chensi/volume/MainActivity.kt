@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -225,6 +226,15 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
+                            IconButton(onClick = {
+                                startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
+                            }) {
+                                Icon(
+                                    Icons.Default.Tune,
+                                    contentDescription = stringResource(R.string.settings_title)
+                                )
+                            }
+
                             TooltipBox(
                                 positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
                                     TooltipAnchorPosition.Below, 12.dp
@@ -359,84 +369,6 @@ class MainActivity : ComponentActivity() {
                             }
 
                             Manager.ShizukuStatus.Connected -> {
-                                if (showAll) {
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .toggleable(
-                                                    value = floatingButtonEnabled,
-                                                    role = Role.Switch,
-                                                    onValueChange = { enabled ->
-                                                        application.setFloatingButtonEnabled(enabled)
-                                                    }
-                                                ),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                modifier = Modifier.weight(1f),
-                                                text = stringResource(R.string.floating_button_toggle)
-                                            )
-                                            Switch(
-                                                checked = floatingButtonEnabled,
-                                                onCheckedChange = null
-                                            )
-                                        }
-
-                                        if (floatingButtonEnabled) {
-                                            Text(
-                                                text = stringResource(
-                                                    R.string.floating_button_size,
-                                                    floatingButtonSize
-                                                )
-                                            )
-                                            Slider(
-                                                value = floatingButtonSize.toFloat(),
-                                                onValueChange = { value ->
-                                                    val size = value.roundToInt()
-                                                    if (size != floatingButtonSize) {
-                                                        application.setFloatingButtonSize(size)
-                                                    }
-                                                },
-                                                valueRange = MyApplication.MIN_FLOATING_BUTTON_SIZE_DP.toFloat()..
-                                                    MyApplication.MAX_FLOATING_BUTTON_SIZE_DP.toFloat(),
-                                                steps = (MyApplication.MAX_FLOATING_BUTTON_SIZE_DP -
-                                                    MyApplication.MIN_FLOATING_BUTTON_SIZE_DP) /
-                                                    MyApplication.FLOATING_BUTTON_SIZE_STEP_DP - 1
-                                            )
-                                        }
-
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .toggleable(
-                                                    value = systemVolumeButtonHooksEnabled,
-                                                    role = Role.Switch,
-                                                    onValueChange = { enabled ->
-                                                        application.setSystemVolumeButtonHooksEnabled(
-                                                            enabled
-                                                        )
-                                                    }
-                                                ),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                modifier = Modifier.weight(1f),
-                                                text = stringResource(
-                                                    R.string.system_volume_button_hooks_toggle
-                                                )
-                                            )
-                                            Switch(
-                                                checked = systemVolumeButtonHooksEnabled,
-                                                onCheckedChange = null
-                                            )
-                                        }
-                                    }
-                                }
-
                                 ServiceStatus()
 
                                 AppVolumeList(

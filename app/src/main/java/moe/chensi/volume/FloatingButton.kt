@@ -232,7 +232,8 @@ internal class FloatingButton(
         edge = if (right) Edge.RIGHT else Edge.LEFT
         params.width = size
         params.x = if (right) screenWidth - size / 2 else -size / 2
-        view?.alpha = COLLAPSED_ALPHA
+        view?.alpha = (context.applicationContext as MyApplication)
+            .settings.floatingCollapsedOpacityPct.value / 100f
         view?.contentDescription = context.getString(R.string.floating_button_expand)
         applyCornerRadii()
     }
