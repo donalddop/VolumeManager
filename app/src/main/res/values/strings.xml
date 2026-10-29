@@ -113,4 +113,6 @@
     <string name="settings_section_floating">Floating button</string>
     <string name="settings_floating_size">Size</string>
     <string name="settings_floating_opacity">Opacity when tucked away</string>
+    <string name="settings_keys_ignore_camera">Leave to system while the camera is in use</string>
+    <string name="settings_keys_ignore_camera_desc">Volume buttons stay the shutter / zoom in every camera app</string>
 </resources>

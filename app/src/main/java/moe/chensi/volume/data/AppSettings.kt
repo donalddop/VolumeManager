@@ -71,6 +71,8 @@ class AppSettings(private val prefs: SharedPreferences) {
     val panelHideOnOutsideTouch = BoolSetting("panel_hide_on_outside_touch", true)
 
     // ---- Volume buttons ----
+    /** Pass the keys to the system while any camera is in use or a camera app is in front. */
+    val keysIgnoreCamera = BoolSetting("keys_ignore_camera", true)
     /** Pass the keys to the system while the screen is off. */
     val keysIgnoreScreenOff = BoolSetting("keys_ignore_screen_off", false)
     /** Pass the keys to the system on the lock screen. */
@@ -92,7 +94,7 @@ class AppSettings(private val prefs: SharedPreferences) {
         panelTimeoutMs, panelAnimationMs, panelScalePct, panelWidthPct, panelMaxHeightPct,
         panelHorizontalAnchor, panelVerticalAnchor, panelOffsetXDp, panelOffsetYDp,
         panelBackgroundPct, panelBlur, panelHideOnOutsideTouch,
-        keysIgnoreScreenOff, keysIgnoreLockScreen, keysIgnoreInCall, keysFirstPressAdjusts,
+        keysIgnoreCamera, keysIgnoreScreenOff, keysIgnoreLockScreen, keysIgnoreInCall, keysFirstPressAdjusts,
         keysAlwaysMedia, keysRepeatInitialDelayMs, keysRepeatIntervalMs,
         floatingCollapsedOpacityPct,
     )

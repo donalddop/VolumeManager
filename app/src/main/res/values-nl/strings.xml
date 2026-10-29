@@ -45,4 +45,6 @@
     <string name="settings_floating_opacity">Dekking als hij weggestopt is</string>
     <string name="system_volume_button_hooks_toggle">Volumeknoppen systeembreed overnemen</string>
     <string name="floating_button_toggle">Zwevende knop tonen</string>
+    <string name="settings_keys_ignore_camera">Aan systeem overlaten als de camera aan staat</string>
+    <string name="settings_keys_ignore_camera_desc">Volumeknoppen blijven sluiterknop / zoom in elke camera-app</string>
 </resources>

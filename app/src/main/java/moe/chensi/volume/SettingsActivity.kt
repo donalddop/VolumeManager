@@ -226,6 +226,13 @@ class SettingsActivity : ComponentActivity() {
                         }
                         item {
                             BoolRow(
+                                stringResource(R.string.settings_keys_ignore_camera),
+                                stringResource(R.string.settings_keys_ignore_camera_desc),
+                                s.keysIgnoreCamera
+                            )
+                        }
+                        item {
+                            BoolRow(
                                 stringResource(R.string.settings_keys_ignore_screen_off),
                                 null, s.keysIgnoreScreenOff
                             )

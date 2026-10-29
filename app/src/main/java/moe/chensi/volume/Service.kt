@@ -426,6 +426,7 @@ class Service : AccessibilityService() {
         manager = app.manager
 
         registerReceiver(broadcastReceiver, IntentFilter(ACTION_SHOW_VIEW), RECEIVER_NOT_EXPORTED)
+        runCatching { cameraManager.registerAvailabilityCallback(cameraCallback, handler) }
 
         preferenceScope?.cancel()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -496,7 +497,52 @@ class Service : AccessibilityService() {
         }
     }
 
+    // ---- Foreground app, tracked from window events (no binder call on the key path) ----
+    @Volatile
+    private var foregroundPackage: String? = null
+
+    private val imePackages: Set<String> by lazy {
+        getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+            ?.enabledInputMethodList?.map { it.packageName }?.toSet() ?: emptySet()
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        val pkg = event.packageName?.toString() ?: return
+        if (pkg == packageName || pkg == "com.android.systemui" || pkg in imePackages) return
+        if (!::manager.isInitialized) return
+        // Only real apps with UI; ignores toasts/overlays from background services
+        if (manager.apps[pkg]?.hasAnyActivity != true) return
+        foregroundPackage = pkg
+    }
+
+    // ---- Camera detection ----
+    private val cameraManager by lazy {
+        getSystemService(android.hardware.camera2.CameraManager::class.java)!!
+    }
+    private val camerasInUse = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val cameraCallback = object : android.hardware.camera2.CameraManager.AvailabilityCallback() {
+        override fun onCameraAvailable(cameraId: String) {
+            camerasInUse.remove(cameraId)
+        }
+
+        override fun onCameraUnavailable(cameraId: String) {
+            camerasInUse.add(cameraId)
+        }
+    }
+
+    /** Every app that can act as a camera (Pixel Camera, secure lock-screen camera, etc.). */
+    private val cameraPackages: Set<String> by lazy {
+        listOf(
+            android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA,
+            android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA_SECURE,
+            android.provider.MediaStore.ACTION_IMAGE_CAPTURE,
+            android.provider.MediaStore.INTENT_ACTION_VIDEO_CAMERA,
+        ).flatMap { action ->
+            packageManager.queryIntentActivities(
+                Intent(action), android.content.pm.PackageManager.MATCH_ALL
+            ).map { it.activityInfo.packageName }
+        }.toSet()
     }
 
     override fun onInterrupt() {
@@ -512,6 +558,7 @@ class Service : AccessibilityService() {
         Toast.makeText(this, R.string.accessibility_service_died, Toast.LENGTH_SHORT).show()
 
         unregisterReceiver(broadcastReceiver)
+        runCatching { cameraManager.unregisterAvailabilityCallback(cameraCallback) }
         super.onDestroy()
     }
 
@@ -542,10 +589,16 @@ class Service : AccessibilityService() {
             return false
         }
 
+        // Foreground app: cached from window events; only ask the system if we don't know yet
+        val foreground = foregroundPackage
+            ?: activityTaskManager.getForegroundTask()?.app?.also { foregroundPackage = it }
+
         // User-configurable "leave it to the system" situations
         val settings = app.settings
         val passToSystem =
-            (settings.keysIgnoreScreenOff.value && !powerManager.isInteractive) ||
+            (settings.keysIgnoreCamera.value &&
+                (camerasInUse.isNotEmpty() || (foreground != null && foreground in cameraPackages))) ||
+                (settings.keysIgnoreScreenOff.value && !powerManager.isInteractive) ||
                 (settings.keysIgnoreLockScreen.value && keyguardManager.isKeyguardLocked) ||
                 (settings.keysIgnoreInCall.value && manager.audioManager.mode.let {
                     it == AudioManager.MODE_IN_CALL || it == AudioManager.MODE_IN_COMMUNICATION
@@ -557,15 +610,12 @@ class Service : AccessibilityService() {
             return false
         }
 
-        // Check foreground task ignorance list
-        val task = activityTaskManager.getForegroundTask()
-        Log.i(TAG, "onKeyEvent foreground task: $task")
-
-        if (task != null) {
-            val app = manager.apps[task.app]
-            if (app != null && app.disableVolumeButtons) {
-                return false
+        // Per-app "don't hook volume buttons" list
+        if (foreground != null && manager.apps[foreground]?.disableVolumeButtons == true) {
+            if (event.action == KeyEvent.ACTION_UP) {
+                handler.stopRepeatAdjustVolume()
             }
+            return false
         }
 
         when (event.action) {

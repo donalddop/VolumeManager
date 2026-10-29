@@ -115,7 +115,7 @@ fun StreamVolumeSlider(
             value = volume.toFloat(),
             valueRange = 0f..maxVolume,
             onValueChange = { value ->
-                val target = value.toInt()
+                val target = kotlin.math.round(value).toInt()
                 if (volume == target) {
                     return@TrackSlider
                 }
