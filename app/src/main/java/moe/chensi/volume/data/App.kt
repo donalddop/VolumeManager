@@ -31,7 +31,9 @@ data class App(
     private val savePreferences: () -> Unit
 ) {
     companion object {
-        private const val HAS_BEEN_PLAYING_RECENTLY_TIMEOUT_MILLIS = 10_000L
+        /** How long an app stays "active" after it stops playing (from settings). */
+        @Volatile
+        var playingGraceMs = 10_000L
 
         val collator: Collator by lazy {
             Collator.getInstance().apply {
@@ -177,7 +179,7 @@ data class App(
 
         _players.add(config)
 
-        if (config.isPlaying) {
+        if (config.isAudible) {
             isPlaying = true
         }
     }
@@ -250,7 +252,7 @@ data class App(
             } else {
                 hasBeenPlayingRecentlyResetJob?.cancel()
                 hasBeenPlayingRecentlyResetJob = scope.launch {
-                    delay(HAS_BEEN_PLAYING_RECENTLY_TIMEOUT_MILLIS)
+                    delay(playingGraceMs)
                     if (hasBeenPlayingRecentlyVersion.get() == version) {
                         Snapshot.withMutableSnapshot {
                             _hasBeenPlayingRecently = false

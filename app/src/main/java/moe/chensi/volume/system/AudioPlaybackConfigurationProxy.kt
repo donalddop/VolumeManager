@@ -1,5 +1,6 @@
 package moe.chensi.volume.system
 
+import android.media.AudioAttributes
 import android.media.AudioPlaybackConfiguration
 import android.os.DeadObjectException
 import org.joor.Reflect
@@ -21,10 +22,22 @@ class AudioPlaybackConfigurationProxy(raw: AudioPlaybackConfiguration) {
     }
 
     companion object {
+        private val AUDIBLE_USAGES = setOf(
+            AudioAttributes.USAGE_UNKNOWN,
+            AudioAttributes.USAGE_MEDIA,
+            AudioAttributes.USAGE_GAME,
+            AudioAttributes.USAGE_VOICE_COMMUNICATION,
+            AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE,
+            AudioAttributes.USAGE_ASSISTANT,
+        )
+
         val classReflect: Reflect = Reflect.onClass(AudioPlaybackConfiguration::class.java)
     }
 
     private val reflect = Reflect.on(raw)
+
+    /** AudioAttributes usage (public API): media, game, notification, alarm, ... */
+    val usage: Int = runCatching { raw.audioAttributes.usage }.getOrDefault(AudioAttributes.USAGE_UNKNOWN)
 
     private val player = reflect.call("getIPlayer")
 
@@ -47,6 +60,14 @@ class AudioPlaybackConfigurationProxy(raw: AudioPlaybackConfiguration) {
     val playerStateName: String by lazy {
         classReflect.call("playerStateToString", playerState.value).get()
     }
+
+    /**
+     * "Really making sound you'd want a slider for": started right now, not a SoundPool
+     * (fire-and-forget effects that never report state) and a media-like usage.
+     * Notification pings, key clicks, alarms and ringtones don't count.
+     */
+    val isAudible: Boolean
+        get() = playerType != 3 && playerState == PlayerState.Started && usage in AUDIBLE_USAGES
 
     val isPlaying: Boolean
         get() {

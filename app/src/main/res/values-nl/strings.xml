@@ -47,4 +47,11 @@
     <string name="floating_button_toggle">Zwevende knop tonen</string>
     <string name="settings_keys_ignore_camera">Aan systeem overlaten als de camera aan staat</string>
     <string name="settings_keys_ignore_camera_desc">Volumeknoppen blijven sluiterknop / zoom in elke camera-app</string>
+    <string name="compact_media">Media</string>
+    <string name="compact_expand">Alles tonen</string>
+    <string name="settings_panel_layout">Indeling</string>
+    <string name="settings_panel_layout_compact">Compact (verticale sliders)</string>
+    <string name="settings_panel_layout_list">Volledige lijst</string>
+    <string name="settings_panel_grace">App blijven tonen na stoppen</string>
+    <string name="settings_panel_grace_none">Direct verbergen</string>
 </resources>

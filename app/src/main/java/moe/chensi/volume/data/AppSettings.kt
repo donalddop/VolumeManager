@@ -68,6 +68,10 @@ class AppSettings(private val prefs: SharedPreferences) {
     /** Background tint opacity in percent (original: 30). */
     val panelBackgroundPct = IntSetting("panel_background_pct", 30, 0, 100, 5)
     val panelBlur = BoolSetting("panel_blur", true)
+    /** 0 = compact row of vertical sliders, 1 = full list (original) */
+    val panelLayout = IntSetting("panel_layout", 0, 0, 1)
+    /** Seconds an app keeps its slider after it stops playing. */
+    val panelPlayingGraceSec = IntSetting("panel_playing_grace_sec", 10, 0, 30)
     val panelHideOnOutsideTouch = BoolSetting("panel_hide_on_outside_touch", true)
 
     // ---- Volume buttons ----
@@ -93,7 +97,7 @@ class AppSettings(private val prefs: SharedPreferences) {
     val all: List<Any> = listOf(
         panelTimeoutMs, panelAnimationMs, panelScalePct, panelWidthPct, panelMaxHeightPct,
         panelHorizontalAnchor, panelVerticalAnchor, panelOffsetXDp, panelOffsetYDp,
-        panelBackgroundPct, panelBlur, panelHideOnOutsideTouch,
+        panelBackgroundPct, panelBlur, panelLayout, panelPlayingGraceSec, panelHideOnOutsideTouch,
         keysIgnoreCamera, keysIgnoreScreenOff, keysIgnoreLockScreen, keysIgnoreInCall, keysFirstPressAdjusts,
         keysAlwaysMedia, keysRepeatInitialDelayMs, keysRepeatIntervalMs,
         floatingCollapsedOpacityPct,

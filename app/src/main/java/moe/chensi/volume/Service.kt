@@ -20,6 +20,10 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.Gravity
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import moe.chensi.volume.compose.CompactVolumePanel
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.CompositionLocalProvider
@@ -217,6 +221,9 @@ class Service : AccessibilityService() {
             override fun Content() {
                 val settings = app.settings
                 val scalePct by settings.panelScalePct.flow.collectAsState()
+                val panelLayout by settings.panelLayout.flow.collectAsState()
+                // The view is recreated on every show, so this resets to compact each time
+                var expanded by remember { mutableStateOf(false) }
                 val backgroundPct by settings.panelBackgroundPct.flow.collectAsState()
                 val widthPct by settings.panelWidthPct.flow.collectAsState()
                 val maxHeightPct by settings.panelMaxHeightPct.flow.collectAsState()
@@ -243,8 +250,21 @@ class Service : AccessibilityService() {
                           )
                       ) {
                         Column(
-                            modifier = Modifier.padding(20.dp, 16.dp)
+                            modifier = Modifier.padding(
+                                if (panelLayout == 0 && !expanded) 14.dp else 20.dp, 16.dp
+                            )
                         ) {
+                          if (panelLayout == 0 && !expanded) {
+                            CompactVolumePanel(
+                                apps = manager.apps.values,
+                                audioManager = manager.audioManager,
+                                onChange = this@Service.handler::startIdleTimer,
+                                onExpand = {
+                                    expanded = true
+                                    this@Service.handler.startIdleTimer()
+                                }
+                            )
+                          } else {
                             AppVolumeList(
                                 apps = manager.apps.values,
                                 showAll = false,
@@ -263,6 +283,7 @@ class Service : AccessibilityService() {
                                     )
                                 }
                             }
+                          }
                         }
                       }
                     }

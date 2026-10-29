@@ -80,8 +80,8 @@ class SettingsActivity : ComponentActivity() {
                     s.panelScalePct.flow, s.panelWidthPct.flow, s.panelMaxHeightPct.flow,
                     s.panelHorizontalAnchor.flow, s.panelVerticalAnchor.flow,
                     s.panelOffsetXDp.flow, s.panelOffsetYDp.flow, s.panelBackgroundPct.flow,
-                    s.panelTimeoutMs.flow,
-                ).drop(9) // skip the initial value of each StateFlow
+                    s.panelTimeoutMs.flow, s.panelLayout.flow,
+                ).drop(10) // skip the initial value of each StateFlow
                     .collect { showPreview() }
             }
 
@@ -139,6 +139,21 @@ class SettingsActivity : ComponentActivity() {
                         item { Section(stringResource(R.string.settings_section_panel)) }
                         item {
                             IntSlider(stringResource(R.string.settings_panel_timeout), s.panelTimeoutMs) { "$it ms" }
+                        }
+                        item {
+                            Choice(
+                                stringResource(R.string.settings_panel_layout),
+                                listOf(
+                                    stringResource(R.string.settings_panel_layout_compact),
+                                    stringResource(R.string.settings_panel_layout_list)
+                                ),
+                                s.panelLayout
+                            )
+                        }
+                        item {
+                            IntSlider(stringResource(R.string.settings_panel_grace), s.panelPlayingGraceSec) {
+                                if (it == 0) stringResource(R.string.settings_panel_grace_none) else "$it s"
+                            }
                         }
                         item {
                             IntSlider(stringResource(R.string.settings_panel_animation), s.panelAnimationMs) {

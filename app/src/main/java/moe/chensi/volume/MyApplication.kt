@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 import rikka.shizuku.ShizukuProvider
 
@@ -53,6 +54,12 @@ class MyApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+            settings.panelPlayingGraceSec.flow.collect {
+                moe.chensi.volume.data.App.playingGraceMs = it * 1000L
+            }
+        }
 
         _floatingButtonEnabled.value =
             floatingButtonPreferences.getBoolean(KEY_FLOATING_BUTTON_ENABLED, false)
