@@ -54,4 +54,15 @@
     <string name="settings_panel_layout_list">Volledige lijst</string>
     <string name="settings_panel_grace">App blijven tonen na stoppen</string>
     <string name="settings_panel_grace_none">Direct verbergen</string>
+    <string name="mode_sound">Geluid</string>
+    <string name="mode_vibrate">Trillen</string>
+    <string name="mode_silent">Stil</string>
+    <string name="mode_dnd">Niet storen</string>
+    <string name="compact_output">Uitvoer</string>
+    <string name="settings_compact_alarm">Alarmvolume tonen in compact paneel</string>
+    <string name="stream_ring">Beltoon</string>
+    <string name="stream_alarm">Alarm</string>
+    <string name="stream_notification">Meldingen</string>
+    <string name="stream_media">Media</string>
+    <string name="stream_call">Bellen</string>
 </resources>

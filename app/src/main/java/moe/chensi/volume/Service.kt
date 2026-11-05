@@ -255,9 +255,13 @@ class Service : AccessibilityService() {
                             )
                         ) {
                           if (panelLayout == 0 && !expanded) {
+                            val showAlarm by settings.compactShowAlarm.flow.collectAsState()
                             CompactVolumePanel(
                                 apps = manager.apps.values,
                                 audioManager = manager.audioManager,
+                                notificationManagerProxy = manager.notificationManagerProxy,
+                                showAlarm = showAlarm,
+                                onCloseRequest = this@Service.handler::hideView,
                                 onChange = this@Service.handler::startIdleTimer,
                                 onExpand = {
                                     expanded = true

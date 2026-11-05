@@ -151,6 +151,9 @@ class SettingsActivity : ComponentActivity() {
                             )
                         }
                         item {
+                            BoolRow(stringResource(R.string.settings_compact_alarm), null, s.compactShowAlarm)
+                        }
+                        item {
                             IntSlider(stringResource(R.string.settings_panel_grace), s.panelPlayingGraceSec) {
                                 if (it == 0) stringResource(R.string.settings_panel_grace_none) else "$it s"
                             }

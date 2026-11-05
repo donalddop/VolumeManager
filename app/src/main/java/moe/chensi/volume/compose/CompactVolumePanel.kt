@@ -1,6 +1,13 @@
 package moe.chensi.volume.compose
 
+import android.app.NotificationManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioManager
+import android.media.MediaRouter2
+import android.provider.Settings
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,7 +35,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.DoNotDisturbOn
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.RingVolume
+import androidx.compose.material.icons.filled.Speaker
 import androidx.compose.material.icons.filled.UnfoldMore
+import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -63,6 +80,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import moe.chensi.volume.R
 import moe.chensi.volume.data.App
+import moe.chensi.volume.system.NotificationManagerProxy
 import kotlin.math.round
 import kotlin.math.roundToInt
 
@@ -249,6 +267,8 @@ fun VerticalStreamSlider(
     name: String,
     audioManager: AudioManager,
     onChange: (() -> Unit)?,
+    iconOverride: ImageVector? = null,
+    onIconClickOverride: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     var volume by remember { mutableIntStateOf(audioManager.getStreamVolume(streamType)) }
@@ -268,7 +288,7 @@ fun VerticalStreamSlider(
         if (target == volume) return
         volume = target
         if (target > 0) lastNonZero = target
-        audioManager.setStreamVolume(streamType, target, 0)
+        runCatching { audioManager.setStreamVolume(streamType, target, 0) }
         onChange?.invoke()
     }
 
@@ -286,63 +306,267 @@ fun VerticalStreamSlider(
         },
         icon = {
             Icon(
-                imageVector = if (volume == 0) Icons.AutoMirrored.Filled.VolumeOff else icon,
+                imageVector = iconOverride
+                    ?: if (volume == 0) Icons.AutoMirrored.Filled.VolumeOff else icon,
                 contentDescription = name,
                 modifier = Modifier.size(26.dp)
             )
         },
-        onIconClick = { set(if (volume > 0) 0 else lastNonZero) }
+        onIconClick = onIconClickOverride ?: { set(if (volume > 0) 0 else lastNonZero) }
     )
 }
 
+/** Round icon button used for the sound-mode selector. */
+@Composable
+private fun ModeButton(
+    icon: ImageVector,
+    description: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val bg = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
+    val fg = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    Box(
+        Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(bg)
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(22.dp))
+    }
+}
+
+private fun openDndAccessSettings(context: Context) {
+    runCatching {
+        context.startActivity(
+            Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    }
+}
+
+/** Opens Android's own output switcher (Bluetooth, speaker, audio sharing...). */
+private fun openOutputSwitcher(context: Context): Boolean {
+    val shown = android.os.Build.VERSION.SDK_INT >= 34 && runCatching {
+        MediaRouter2.getInstance(context).showSystemOutputSwitcher()
+    }.getOrDefault(false)
+    if (shown) return true
+    return runCatching {
+        context.startActivity(
+            Intent(Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+        true
+    }.getOrDefault(false)
+}
+
 /**
- * Samsung-style compact panel: media volume, then one thin slider per app that is
- * actually playing sound right now, then a button to expand to the full list.
+ * Samsung-style compact panel:
+ *  - top: sound / vibrate / silent + Do Not Disturb
+ *  - middle: ringtone, notifications, media (+ alarm) and one thin slider per app that
+ *    is actually playing sound right now
+ *  - bottom: output switcher and "show all"
  */
 @Composable
 fun CompactVolumePanel(
     apps: Collection<App>,
     audioManager: AudioManager,
+    notificationManagerProxy: NotificationManagerProxy,
+    showAlarm: Boolean,
     onChange: (() -> Unit)?,
     onExpand: () -> Unit,
+    onCloseRequest: () -> Unit,
 ) {
+    val context = LocalContext.current
+    var ringerMode by remember { mutableIntStateOf(audioManager.ringerMode) }
+    var filter by remember {
+        mutableIntStateOf(runCatching { notificationManagerProxy.getCurrentInterruptionFilter() }
+            .getOrDefault(NotificationManager.INTERRUPTION_FILTER_ALL))
+    }
+
+    DisposableEffect(context) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context?, intent: Intent?) {
+                ringerMode = audioManager.ringerMode
+                filter = runCatching { notificationManagerProxy.getCurrentInterruptionFilter() }
+                    .getOrDefault(filter)
+                VolumeChangeObserver.notifyVolumeChanged()
+            }
+        }
+        val intentFilter = IntentFilter().apply {
+            addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
+            addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
+        }
+        context.registerReceiver(receiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+        onDispose { context.unregisterReceiver(receiver) }
+    }
+
+    fun setRinger(mode: Int) {
+        try {
+            audioManager.ringerMode = mode
+        } catch (_: SecurityException) {
+            openDndAccessSettings(context) // needs "Do Not Disturb access" once
+            onCloseRequest()
+            return
+        }
+        ringerMode = audioManager.ringerMode
+        VolumeChangeObserver.notifyVolumeChanged()
+        onChange?.invoke()
+    }
+
+    val dndOn = filter != NotificationManager.INTERRUPTION_FILTER_ALL &&
+        filter != NotificationManager.INTERRUPTION_FILTER_UNKNOWN
+
+    fun toggleDnd() {
+        try {
+            notificationManagerProxy.setInterruptionFilter(
+                if (dndOn) NotificationManager.INTERRUPTION_FILTER_ALL
+                else NotificationManager.INTERRUPTION_FILTER_PRIORITY
+            )
+            filter = notificationManagerProxy.getCurrentInterruptionFilter()
+        } catch (_: SecurityException) {
+            openDndAccessSettings(context)
+            onCloseRequest()
+            return
+        }
+        onChange?.invoke()
+    }
+
     val playing = apps
         .filter { it.isPlayer && !it.hidden && it.hasBeenPlayingRecently }
         .sortedWith(App.comparator)
 
-    Row(
-        modifier = Modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.Bottom
-    ) {
-        VerticalStreamSlider(
-            streamType = AudioManager.STREAM_MUSIC,
-            icon = Icons.AutoMirrored.Filled.VolumeUp,
-            name = stringResource(R.string.compact_media),
-            audioManager = audioManager,
-            onChange = onChange
-        )
+    val ringIcon = when (ringerMode) {
+        AudioManager.RINGER_MODE_VIBRATE -> Icons.Default.Vibration
+        AudioManager.RINGER_MODE_SILENT -> Icons.Default.NotificationsOff
+        else -> Icons.Default.RingVolume
+    }
 
-        if (playing.isNotEmpty()) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // ---- Sound mode + DND ----
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(
+                Modifier
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                    .padding(2.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                ModeButton(
+                    Icons.Default.NotificationsActive, stringResource(R.string.mode_sound),
+                    ringerMode == AudioManager.RINGER_MODE_NORMAL
+                ) { setRinger(AudioManager.RINGER_MODE_NORMAL) }
+                ModeButton(
+                    Icons.Default.Vibration, stringResource(R.string.mode_vibrate),
+                    ringerMode == AudioManager.RINGER_MODE_VIBRATE
+                ) { setRinger(AudioManager.RINGER_MODE_VIBRATE) }
+                ModeButton(
+                    Icons.Default.NotificationsOff, stringResource(R.string.mode_silent),
+                    ringerMode == AudioManager.RINGER_MODE_SILENT
+                ) { setRinger(AudioManager.RINGER_MODE_SILENT) }
+            }
             Box(
                 Modifier
-                    .padding(bottom = 42.dp)
-                    .width(1.dp)
-                    .height(150.dp)
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
-            )
-        }
-
-        playing.forEach { app ->
-            key(app.packageName) {
-                VerticalAppSlider(app, onChange)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                    .padding(2.dp)
+            ) {
+                ModeButton(
+                    Icons.Default.DoNotDisturbOn, stringResource(R.string.mode_dnd), dndOn
+                ) { toggleDnd() }
             }
         }
 
-        IconButton(onClick = onExpand, modifier = Modifier.padding(bottom = 0.dp)) {
-            Icon(
-                Icons.Default.UnfoldMore,
-                contentDescription = stringResource(R.string.compact_expand)
+        // ---- Sliders ----
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.Bottom
+        ) {
+            VerticalStreamSlider(
+                streamType = AudioManager.STREAM_RING,
+                icon = Icons.Default.RingVolume,
+                name = stringResource(R.string.stream_ring),
+                audioManager = audioManager,
+                onChange = onChange,
+                iconOverride = ringIcon,
+                // Tap the ring icon: sound -> vibrate -> silent -> sound (like Samsung)
+                onIconClickOverride = {
+                    setRinger(
+                        when (ringerMode) {
+                            AudioManager.RINGER_MODE_NORMAL -> AudioManager.RINGER_MODE_VIBRATE
+                            AudioManager.RINGER_MODE_VIBRATE -> AudioManager.RINGER_MODE_SILENT
+                            else -> AudioManager.RINGER_MODE_NORMAL
+                        }
+                    )
+                }
+            )
+            VerticalStreamSlider(
+                streamType = AudioManager.STREAM_NOTIFICATION,
+                icon = Icons.Default.NotificationsNone,
+                name = stringResource(R.string.stream_notification),
+                audioManager = audioManager,
+                onChange = onChange
+            )
+            VerticalStreamSlider(
+                streamType = AudioManager.STREAM_MUSIC,
+                icon = Icons.AutoMirrored.Filled.VolumeUp,
+                name = stringResource(R.string.compact_media),
+                audioManager = audioManager,
+                onChange = onChange
+            )
+            if (showAlarm) {
+                VerticalStreamSlider(
+                    streamType = AudioManager.STREAM_ALARM,
+                    icon = Icons.Default.Alarm,
+                    name = stringResource(R.string.stream_alarm),
+                    audioManager = audioManager,
+                    onChange = onChange
+                )
+            }
+
+            if (playing.isNotEmpty()) {
+                Box(
+                    Modifier
+                        .padding(bottom = 42.dp)
+                        .width(1.dp)
+                        .height(150.dp)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
+                )
+            }
+
+            playing.forEach { app ->
+                key(app.packageName) {
+                    VerticalAppSlider(app, onChange)
+                }
+            }
+        }
+
+        // ---- Output + show all ----
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            AssistChip(
+                onClick = {
+                    if (openOutputSwitcher(context)) onCloseRequest()
+                },
+                label = { Text(stringResource(R.string.compact_output)) },
+                leadingIcon = {
+                    Icon(Icons.Default.Speaker, contentDescription = null, Modifier.size(18.dp))
+                }
+            )
+            AssistChip(
+                onClick = onExpand,
+                label = { Text(stringResource(R.string.compact_expand)) },
+                leadingIcon = {
+                    Icon(Icons.Default.UnfoldMore, contentDescription = null, Modifier.size(18.dp))
+                }
             )
         }
     }

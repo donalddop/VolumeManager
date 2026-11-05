@@ -70,6 +70,8 @@ class AppSettings(private val prefs: SharedPreferences) {
     val panelBlur = BoolSetting("panel_blur", true)
     /** 0 = compact row of vertical sliders, 1 = full list (original) */
     val panelLayout = IntSetting("panel_layout", 0, 0, 1)
+    /** Also show the alarm volume in the compact panel. */
+    val compactShowAlarm = BoolSetting("compact_show_alarm", false)
     /** Seconds an app keeps its slider after it stops playing. */
     val panelPlayingGraceSec = IntSetting("panel_playing_grace_sec", 10, 0, 30)
     val panelHideOnOutsideTouch = BoolSetting("panel_hide_on_outside_touch", true)
@@ -97,7 +99,7 @@ class AppSettings(private val prefs: SharedPreferences) {
     val all: List<Any> = listOf(
         panelTimeoutMs, panelAnimationMs, panelScalePct, panelWidthPct, panelMaxHeightPct,
         panelHorizontalAnchor, panelVerticalAnchor, panelOffsetXDp, panelOffsetYDp,
-        panelBackgroundPct, panelBlur, panelLayout, panelPlayingGraceSec, panelHideOnOutsideTouch,
+        panelBackgroundPct, panelBlur, panelLayout, compactShowAlarm, panelPlayingGraceSec, panelHideOnOutsideTouch,
         keysIgnoreCamera, keysIgnoreScreenOff, keysIgnoreLockScreen, keysIgnoreInCall, keysFirstPressAdjusts,
         keysAlwaysMedia, keysRepeatInitialDelayMs, keysRepeatIntervalMs,
         floatingCollapsedOpacityPct,

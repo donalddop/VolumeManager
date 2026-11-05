@@ -122,4 +122,10 @@
     <string name="settings_panel_layout_list">Full list</string>
     <string name="settings_panel_grace">Keep app visible after it stops</string>
     <string name="settings_panel_grace_none">Hide right away</string>
+    <string name="mode_sound">Sound</string>
+    <string name="mode_vibrate">Vibrate</string>
+    <string name="mode_silent">Silent</string>
+    <string name="mode_dnd">Do Not Disturb</string>
+    <string name="compact_output">Output</string>
+    <string name="settings_compact_alarm">Show alarm volume in compact panel</string>
 </resources>
