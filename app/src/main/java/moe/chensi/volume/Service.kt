@@ -452,6 +452,7 @@ class Service : AccessibilityService() {
 
         registerReceiver(broadcastReceiver, IntentFilter(ACTION_SHOW_VIEW), RECEIVER_NOT_EXPORTED)
         runCatching { cameraManager.registerAvailabilityCallback(cameraCallback, handler) }
+        callMediaPauser = moe.chensi.volume.calls.CallMediaPauser(this, app.settings).also { it.start() }
 
         preferenceScope?.cancel()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -541,6 +542,8 @@ class Service : AccessibilityService() {
         foregroundPackage = pkg
     }
 
+    private var callMediaPauser: moe.chensi.volume.calls.CallMediaPauser? = null
+
     // ---- Camera detection ----
     private val cameraManager by lazy {
         getSystemService(android.hardware.camera2.CameraManager::class.java)!!
@@ -584,6 +587,7 @@ class Service : AccessibilityService() {
 
         unregisterReceiver(broadcastReceiver)
         runCatching { cameraManager.unregisterAvailabilityCallback(cameraCallback) }
+        callMediaPauser?.stop()
         super.onDestroy()
     }
 

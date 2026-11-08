@@ -274,6 +274,32 @@ class SettingsActivity : ComponentActivity() {
                             IntSlider(stringResource(R.string.settings_keys_repeat_interval), s.keysRepeatIntervalMs) { "$it ms" }
                         }
 
+                        // ---------- Calls ----------
+                        item { Section(stringResource(R.string.settings_section_calls)) }
+                        item {
+                            val granted = remember {
+                                androidx.core.app.NotificationManagerCompat
+                                    .getEnabledListenerPackages(this@SettingsActivity)
+                                    .contains(packageName)
+                            }
+                            BoolRow(
+                                stringResource(R.string.settings_call_pause),
+                                stringResource(
+                                    if (granted) R.string.settings_call_pause_desc
+                                    else R.string.settings_call_pause_needs_access
+                                ),
+                                s.callPauseMedia
+                            )
+                            if (!granted) {
+                                TextButton(onClick = {
+                                    startActivity(Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                                }) { Text(stringResource(R.string.settings_call_grant)) }
+                            }
+                        }
+                        item {
+                            BoolRow(stringResource(R.string.settings_call_pause_ring), null, s.callPauseOnRing)
+                        }
+
                         // ---------- Floating button ----------
                         item { Section(stringResource(R.string.settings_section_floating)) }
                         item {

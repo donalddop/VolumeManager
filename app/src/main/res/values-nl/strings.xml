@@ -65,4 +65,10 @@
     <string name="stream_notification">Meldingen</string>
     <string name="stream_media">Media</string>
     <string name="stream_call">Bellen</string>
+    <string name="settings_section_calls">Gesprekken</string>
+    <string name="settings_call_pause">Muziek pauzeren tijdens gesprekken</string>
+    <string name="settings_call_pause_desc">Blijft gepauzeerd na het gesprek tot je zelf op play drukt</string>
+    <string name="settings_call_pause_needs_access">Heeft meldingstoegang nodig om je muziek-apps te bedienen</string>
+    <string name="settings_call_grant">Toegang geven</string>
+    <string name="settings_call_pause_ring">Al pauzeren tijdens overgaan</string>
 </resources>

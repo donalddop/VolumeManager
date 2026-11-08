@@ -92,6 +92,12 @@ class AppSettings(private val prefs: SharedPreferences) {
     val keysRepeatInitialDelayMs = IntSetting("keys_repeat_initial_ms", 500, 150, 1500, 50)
     val keysRepeatIntervalMs = IntSetting("keys_repeat_interval_ms", 100, 30, 400, 10)
 
+    // ---- Calls ----
+    /** Pause playing media when a call starts, and keep it paused afterwards. */
+    val callPauseMedia = BoolSetting("call_pause_media", true)
+    /** Already pause while the phone is ringing (otherwise only once you pick up). */
+    val callPauseOnRing = BoolSetting("call_pause_on_ring", false)
+
     // ---- Floating button ----
     /** Opacity of the floating button when tucked against the edge (original: 50). */
     val floatingCollapsedOpacityPct = IntSetting("floating_collapsed_opacity_pct", 50, 10, 100, 5)
@@ -102,7 +108,7 @@ class AppSettings(private val prefs: SharedPreferences) {
         panelBackgroundPct, panelBlur, panelLayout, compactShowAlarm, panelPlayingGraceSec, panelHideOnOutsideTouch,
         keysIgnoreCamera, keysIgnoreScreenOff, keysIgnoreLockScreen, keysIgnoreInCall, keysFirstPressAdjusts,
         keysAlwaysMedia, keysRepeatInitialDelayMs, keysRepeatIntervalMs,
-        floatingCollapsedOpacityPct,
+        floatingCollapsedOpacityPct, callPauseMedia, callPauseOnRing,
     )
 
     fun resetAll() {

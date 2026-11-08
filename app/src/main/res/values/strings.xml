@@ -128,4 +128,10 @@
     <string name="mode_dnd">Do Not Disturb</string>
     <string name="compact_output">Output</string>
     <string name="settings_compact_alarm">Show alarm volume in compact panel</string>
+    <string name="settings_section_calls">Calls</string>
+    <string name="settings_call_pause">Pause music during calls</string>
+    <string name="settings_call_pause_desc">Stays paused after the call until you press play yourself</string>
+    <string name="settings_call_pause_needs_access">Needs notification access to control your music apps</string>
+    <string name="settings_call_grant">Grant access</string>
+    <string name="settings_call_pause_ring">Already pause while ringing</string>
 </resources>
