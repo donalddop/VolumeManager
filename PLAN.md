@@ -18,6 +18,7 @@ Werkend en in gebruik. Opgebouwd bovenop de upstream-app:
 
 - Perceptuele volumecurve (`data/VolumeCurve.kt`, 40 dB slider-curve)
 - Instellingenscherm: paneel, positie, volumetoetsen, zwevende knop (`SettingsActivity.kt`)
+- Compact paneel in One UI-stijl: brede tracksliders met het icoon in de track, opent ingeklapt met een chevron, ringslider volgt de tril-/stilstand en is aan meldingen gelinkt, uitvoerkiezer en tandwiel in de kop (`compose/CompactVolumePanel.kt`)
 - Samsung-achtig geluidspaneel: sound/vibrate/silent, DND, ring/notificatie/media (`compose/SystemVolumePanel.kt`)
 - Quick Settings-tile als ingang (`QuickSettingsTileService.kt`)
 - Media pauzeren tijdens gesprekken en pauze houden daarna (`calls/CallMediaPauser.kt`, `calls/MediaListenerService.kt`)
