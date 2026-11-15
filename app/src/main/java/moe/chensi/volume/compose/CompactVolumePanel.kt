@@ -10,7 +10,6 @@ import android.media.MediaRouter2
 import android.provider.Settings
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -22,32 +21,32 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.DoNotDisturbOn
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.RingVolume
+import androidx.compose.material.icons.filled.Settings as SettingsIcon
 import androidx.compose.material.icons.filled.Speaker
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.filled.Vibration
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -63,7 +62,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -84,41 +83,71 @@ import moe.chensi.volume.system.NotificationManagerProxy
 import kotlin.math.round
 import kotlin.math.roundToInt
 
-private val THUMB_MAX = 26.dp
+private val TRACK_WIDTH = 40.dp
+private val TRACK_HEIGHT = 150.dp
+
+/** Bottom part of the track that holds the icon; also the tap target for mute. */
+private val ICON_ZONE = 40.dp
 
 /**
- * Thin vertical slider with a draggable dot. Bottom = 0.
- * Vertical drag adjusts, a tap jumps to that spot, a horizontal swipe is left to the
- * scrolling row (so scrolling through apps never changes a volume by accident).
+ * One UI style vertical slider: a wide rounded track that fills from the bottom, with the
+ * stream icon sitting *inside* the bottom of the track.
+ *
+ * There is deliberately no thumb. The earlier version used a thin 10 dp track with a
+ * white-bordered dot, which is a Material slider turned upright and is what made the panel
+ * read as "not Samsung" even though the behaviour was close: on One UI the fill level itself
+ * is the handle.
+ *
+ * The icon is drawn twice, once in the unfilled colour and once in the on-fill colour with
+ * the second copy clipped to the filled part of the track. That is why the icon changes
+ * colour exactly where the fill passes over it instead of staying one flat tone. Tinting it
+ * by a threshold was tried first and looks wrong halfway, because the whole glyph flips at
+ * once while the fill edge sits across it.
+ *
+ * Vertical drags adjust, a tap jumps to that spot, a tap inside the icon zone calls
+ * [onIconTap] (mute / unmute), and horizontal swipes are left to the parent scroller so
+ * scrolling through app sliders never changes a volume by accident.
  */
 @Composable
-fun VerticalVolumeSlider(
+fun OneUiVolumeSlider(
     value: Float,
     onValueChange: (Float) -> Unit,
+    icon: @Composable (tint: Color) -> Unit,
     modifier: Modifier = Modifier,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
-    height: Dp = 150.dp,
+    height: Dp = TRACK_HEIGHT,
+    dimmed: Boolean = false,
+    onIconTap: (() -> Unit)? = null,
 ) {
     val range = if (valueRange.endInclusive > valueRange.start) valueRange else 0f..1f
     val span = range.endInclusive - range.start
     val v = value.coerceIn(range.start, range.endInclusive)
-    val fraction = (v - range.start) / span
+    val fraction = ((v - range.start) / span).coerceIn(0f, 1f)
     val latest by rememberUpdatedState(v)
     val onChange by rememberUpdatedState(onValueChange)
+    val onIcon by rememberUpdatedState(onIconTap)
     val haptics = LocalHapticFeedback.current
-    var active by remember { mutableStateOf(false) }
-    val fill = MaterialTheme.colorScheme.primary
-    val trackBg = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
-    val thumbSize = if (active) THUMB_MAX else 22.dp
+    // Vibrate / silent mode greys the ring slider out but leaves it usable, so this is only
+    // an alpha on the colours, not a disabled state.
+    val alpha = if (dimmed) 0.4f else 1f
+    val fill = MaterialTheme.colorScheme.primary.copy(alpha = alpha)
+    val trackBg = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f * alpha)
+    val iconOff = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
+    val iconOn = MaterialTheme.colorScheme.onPrimary.copy(alpha = alpha)
     val density = LocalDensity.current
 
-    BoxWithConstraints(modifier.width(44.dp).height(height)) {
+    BoxWithConstraints(
+        modifier
+            .width(TRACK_WIDTH)
+            .height(height)
+            .clip(RoundedCornerShape(TRACK_WIDTH / 2))
+            .background(trackBg)
+    ) {
         val hPx = with(density) { maxHeight.toPx() }
-        val thumbPx = with(density) { THUMB_MAX.toPx() }
+        val iconZonePx = with(density) { ICON_ZONE.toPx() }
 
         fun valueAt(y: Float): Float {
-            val usable = (hPx - thumbPx).coerceAtLeast(1f)
-            val f = 1f - ((y - thumbPx / 2f) / usable).coerceIn(0f, 1f)
+            val f = 1f - (y / hPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
             return range.start + f * span
         }
 
@@ -131,135 +160,123 @@ fun VerticalVolumeSlider(
             }
         }
 
+        // Fill, from the bottom up
+        Box(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .fillMaxHeight(fraction)
+                .background(fill)
+        )
+        // Icon in the unfilled colour
+        Box(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(ICON_ZONE),
+            contentAlignment = Alignment.Center
+        ) { icon(iconOff) }
+        // The same icon again, clipped to the filled part
+        Box(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .fillMaxHeight(fraction)
+                .clipToBounds()
+        ) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(ICON_ZONE),
+                contentAlignment = Alignment.Center
+            ) { icon(iconOn) }
+        }
+        // Gestures on top of the painted layers
         Box(
             Modifier
                 .fillMaxSize()
                 .pointerInput(range, hPx) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
-                        active = true
-                        try {
-                            val drag = awaitVerticalTouchSlopOrCancellation(down.id) { change, _ ->
+                        val drag = awaitVerticalTouchSlopOrCancellation(down.id) { change, _ ->
+                            change.consume()
+                        }
+                        if (drag != null) {
+                            emit(drag.position.y)
+                            verticalDrag(drag.id) { change ->
                                 change.consume()
+                                emit(change.position.y)
                             }
-                            if (drag != null) {
-                                emit(drag.position.y)
-                                verticalDrag(drag.id) { change ->
-                                    change.consume()
-                                    emit(change.position.y)
-                                }
-                            } else {
-                                // Plain tap (not taken over by the horizontal scroller): jump
-                                val up = currentEvent.changes.firstOrNull { it.id == down.id }
-                                if (up != null && !up.pressed && !up.isConsumed) {
-                                    up.consume()
+                        } else {
+                            // Plain tap (not taken over by the horizontal scroller)
+                            val up = currentEvent.changes.firstOrNull { it.id == down.id }
+                            if (up != null && !up.pressed && !up.isConsumed) {
+                                up.consume()
+                                val tap = onIcon
+                                if (tap != null && up.position.y >= hPx - iconZonePx) {
+                                    tap()
+                                } else {
                                     emit(up.position.y)
                                 }
                             }
-                        } finally {
-                            active = false
                         }
                     }
                 }
-        ) {
-            // Track, inset by half a thumb so the fill ends exactly at the dot's centre
-            Box(
-                Modifier
-                    .align(Alignment.Center)
-                    .width(10.dp)
-                    .fillMaxHeight()
-                    .padding(vertical = THUMB_MAX / 2)
-                    .clip(CircleShape)
-                    .background(trackBg)
-            ) {
-                Box(
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .fillMaxHeight(fraction)
-                        .background(fill, CircleShape)
-                )
-            }
-            // The dot
-            val thumbTop = with(density) { ((1f - fraction) * (hPx - thumbPx)).toDp() } +
-                (THUMB_MAX - thumbSize) / 2
-            Box(
-                Modifier
-                    .align(Alignment.TopCenter)
-                    .offset(y = thumbTop)
-                    .size(thumbSize)
-                    .shadow(3.dp, CircleShape)
-                    .background(fill, CircleShape)
-                    .border(4.dp, Color.White, CircleShape)
-            )
-        }
+        )
     }
 }
-
-@Composable
-private fun SliderColumn(
-    slider: @Composable () -> Unit,
-    icon: @Composable () -> Unit,
-    onIconClick: () -> Unit,
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        slider()
-        Box(
-            Modifier
-                .size(34.dp)
-                .clip(CircleShape)
-                .clickable(onClick = onIconClick),
-            contentAlignment = Alignment.Center
-        ) { icon() }
-    }
-}
-
-/** One app: vertical slider + its icon. Tapping the icon mutes / unmutes. */
+/** One app: its icon sits in the bottom of the track. Tapping the icon mutes / unmutes. */
 @Composable
 fun VerticalAppSlider(app: App, onChange: (() -> Unit)?) {
     var lastNonZero by remember { mutableFloatStateOf(if (app.volume > 0f) app.volume else 0.5f) }
     val muted = app.volume == 0f
 
-    SliderColumn(
-        slider = {
-            VerticalVolumeSlider(
-                value = app.volume,
-                onValueChange = {
-                    app.volume = it
-                    if (it > 0f) lastNonZero = it
-                    onChange?.invoke()
-                },
-                modifier = Modifier.semantics {
-                    contentDescription = app.name
-                    stateDescription = "${(app.volume * 100).roundToInt()}%"
-                }
-            )
+    OneUiVolumeSlider(
+        value = app.volume,
+        onValueChange = {
+            app.volume = it
+            if (it > 0f) lastNonZero = it
+            onChange?.invoke()
         },
-        icon = {
+        // An app icon is a bitmap, so it keeps its own colours; the tint only applies to
+        // the vector stream icons.
+        icon = { _ ->
             val bitmap = app.icon
             if (bitmap != null) {
                 Image(
                     bitmap = bitmap,
                     contentDescription = app.name,
                     modifier = Modifier
-                        .fillMaxSize()
+                        .size(24.dp)
                         .graphicsLayer { alpha = if (muted) 0.35f else 1f }
                 )
             } else {
-                Box(Modifier.fillMaxSize().background(Color.Gray, CircleShape))
+                Box(Modifier.size(24.dp).background(Color.Gray, CircleShape))
             }
         },
-        onIconClick = {
+        modifier = Modifier.semantics {
+            contentDescription = app.name
+            stateDescription = "${(app.volume * 100).roundToInt()}%"
+        },
+        onIconTap = {
             app.volume = if (muted) lastNonZero else 0f
             onChange?.invoke()
         }
     )
 }
 
-/** A system stream (e.g. media) as a vertical slider with a symbol icon. */
+/**
+ * A system stream (media, ring, ...) as a One UI slider.
+ *
+ * [forceZero] shows 0 no matter what the system has stored for the stream: in vibrate or
+ * silent mode Samsung shows the ring at 0 while Android keeps the old level, so the shown
+ * value has to be decoupled from the stream's own value.
+ *
+ * [linkedStreamType] keeps a second stream at the same fraction. Ring and notification are
+ * linked on Samsung, and on most devices Android aliases the two anyway, so moving one
+ * without the other leaves the panel showing a difference that does not really exist.
+ */
 @Composable
 fun VerticalStreamSlider(
     streamType: Int,
@@ -269,10 +286,15 @@ fun VerticalStreamSlider(
     onChange: (() -> Unit)?,
     iconOverride: ImageVector? = null,
     onIconClickOverride: (() -> Unit)? = null,
+    dimmed: Boolean = false,
+    forceZero: Boolean = false,
+    onRaiseFromZero: (() -> Unit)? = null,
+    linkedStreamType: Int? = null,
 ) {
     val context = LocalContext.current
     var volume by remember { mutableIntStateOf(audioManager.getStreamVolume(streamType)) }
-    val maxVolume = remember(streamType) { audioManager.getStreamMaxVolume(streamType).coerceAtLeast(1) }
+    val maxVolume =
+        remember(streamType) { audioManager.getStreamMaxVolume(streamType).coerceAtLeast(1) }
     var lastNonZero by remember { mutableIntStateOf(volume.takeIf { it > 0 } ?: (maxVolume / 2)) }
 
     DisposableEffect(context) {
@@ -284,39 +306,51 @@ fun VerticalStreamSlider(
         volume = audioManager.getStreamVolume(streamType)
     }
 
+    val shown = if (forceZero) 0 else volume
+
     fun set(target: Int) {
-        if (target == volume) return
+        // Dragging the ring slider up is how you leave vibrate / silent mode on Samsung, so
+        // the ringer mode has to change before the level: setting a ring volume while still
+        // in silent mode is swallowed by the system.
+        if (forceZero && target > 0) onRaiseFromZero?.invoke()
+        if (target == volume && !forceZero) return
         volume = target
         if (target > 0) lastNonZero = target
         runCatching { audioManager.setStreamVolume(streamType, target, 0) }
+        linkedStreamType?.let { linked ->
+            val linkedMax = audioManager.getStreamMaxVolume(linked).coerceAtLeast(1)
+            val scaled = (target.toFloat() / maxVolume * linkedMax).roundToInt()
+            runCatching { audioManager.setStreamVolume(linked, scaled, 0) }
+            // Nudge the other slider to re-read; the system broadcast is not guaranteed for
+            // an aliased stream.
+            VolumeChangeObserver.notifyVolumeChanged()
+        }
         onChange?.invoke()
     }
 
-    SliderColumn(
-        slider = {
-            VerticalVolumeSlider(
-                value = volume.toFloat(),
-                valueRange = 0f..maxVolume.toFloat(),
-                onValueChange = { set(round(it).toInt()) },
-                modifier = Modifier.semantics {
-                    contentDescription = name
-                    stateDescription = "$volume/$maxVolume"
-                }
-            )
-        },
-        icon = {
+    OneUiVolumeSlider(
+        value = shown.toFloat(),
+        valueRange = 0f..maxVolume.toFloat(),
+        onValueChange = { set(round(it).toInt()) },
+        dimmed = dimmed,
+        icon = { tint ->
             Icon(
                 imageVector = iconOverride
-                    ?: if (volume == 0) Icons.AutoMirrored.Filled.VolumeOff else icon,
+                    ?: if (shown == 0) Icons.AutoMirrored.Filled.VolumeOff else icon,
                 contentDescription = name,
-                modifier = Modifier.size(26.dp)
+                tint = tint,
+                modifier = Modifier.size(22.dp)
             )
         },
-        onIconClick = onIconClickOverride ?: { set(if (volume > 0) 0 else lastNonZero) }
+        modifier = Modifier.semantics {
+            contentDescription = name
+            stateDescription = "$shown/$maxVolume"
+        },
+        onIconTap = onIconClickOverride ?: { set(if (shown > 0) 0 else lastNonZero) }
     )
 }
 
-/** Round icon button used for the sound-mode selector. */
+/** Round icon button used for the sound-mode selector and the header actions. */
 @Composable
 private fun ModeButton(
     icon: ImageVector,
@@ -362,12 +396,80 @@ private fun openOutputSwitcher(context: Context): Boolean {
     }.getOrDefault(false)
 }
 
+/** What the gear in the header opens: the system sound settings, like Samsung's overflow. */
+private fun openSoundSettings(context: Context): Boolean {
+    return runCatching {
+        context.startActivity(
+            Intent(Settings.ACTION_SOUND_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+        true
+    }.getOrDefault(false)
+}
+
 /**
- * Samsung-style compact panel:
- *  - top: sound / vibrate / silent + Do Not Disturb
- *  - middle: ringtone, notifications, media (+ alarm) and one thin slider per app that
- *    is actually playing sound right now
- *  - bottom: output switcher and "show all"
+ * The ring slider, used both collapsed and expanded, so the behaviour cannot drift between
+ * the two states.
+ */
+@Composable
+private fun RingSlider(
+    audioManager: AudioManager,
+    ringerMode: Int,
+    onSetRinger: (Int) -> Unit,
+    onChange: (() -> Unit)?,
+) {
+    val silent = ringerMode != AudioManager.RINGER_MODE_NORMAL
+    val ringIcon = when (ringerMode) {
+        AudioManager.RINGER_MODE_VIBRATE -> Icons.Default.Vibration
+        AudioManager.RINGER_MODE_SILENT -> Icons.Default.NotificationsOff
+        else -> Icons.Default.RingVolume
+    }
+
+    VerticalStreamSlider(
+        streamType = AudioManager.STREAM_RING,
+        icon = Icons.Default.RingVolume,
+        name = stringResource(R.string.stream_ring),
+        audioManager = audioManager,
+        onChange = onChange,
+        iconOverride = ringIcon,
+        dimmed = silent,
+        forceZero = silent,
+        onRaiseFromZero = { onSetRinger(AudioManager.RINGER_MODE_NORMAL) },
+        linkedStreamType = AudioManager.STREAM_NOTIFICATION,
+        // Tap the ring icon: sound -> vibrate -> silent -> sound (like Samsung)
+        onIconClickOverride = {
+            onSetRinger(
+                when (ringerMode) {
+                    AudioManager.RINGER_MODE_NORMAL -> AudioManager.RINGER_MODE_VIBRATE
+                    AudioManager.RINGER_MODE_VIBRATE -> AudioManager.RINGER_MODE_SILENT
+                    else -> AudioManager.RINGER_MODE_NORMAL
+                }
+            )
+        }
+    )
+}
+
+/** The media slider, used both collapsed and expanded. */
+@Composable
+private fun MediaSlider(audioManager: AudioManager, onChange: (() -> Unit)?) {
+    VerticalStreamSlider(
+        streamType = AudioManager.STREAM_MUSIC,
+        icon = Icons.AutoMirrored.Filled.VolumeUp,
+        name = stringResource(R.string.compact_media),
+        audioManager = audioManager,
+        onChange = onChange
+    )
+}
+/**
+ * Samsung-style compact panel.
+ *
+ * Opens collapsed: one slider for whatever you are most likely reaching for, plus a chevron.
+ * Tapping the chevron reveals the sound mode row, every system stream and one slider per app
+ * that is actually playing sound right now. The header then carries the output switcher, the
+ * jump to the full list and a gear to the system sound settings.
+ *
+ * The header uses plain icon buttons rather than an overflow menu: a DropdownMenu needs its
+ * own popup window, and this panel lives in an accessibility overlay with no Activity behind
+ * it, where popup windows are unreliable.
  */
 @Composable
 fun CompactVolumePanel(
@@ -385,6 +487,9 @@ fun CompactVolumePanel(
         mutableIntStateOf(runCatching { notificationManagerProxy.getCurrentInterruptionFilter() }
             .getOrDefault(NotificationManager.INTERRUPTION_FILTER_ALL))
     }
+
+    // The view is recreated on every show, so the panel starts collapsed again each time.
+    var showAllSliders by remember { mutableStateOf(false) }
 
     DisposableEffect(context) {
         val receiver = object : BroadcastReceiver() {
@@ -438,15 +543,47 @@ fun CompactVolumePanel(
         .filter { it.isPlayer && !it.hidden && it.hasBeenPlayingRecently }
         .sortedWith(App.comparator)
 
-    val ringIcon = when (ringerMode) {
-        AudioManager.RINGER_MODE_VIBRATE -> Icons.Default.Vibration
-        AudioManager.RINGER_MODE_SILENT -> Icons.Default.NotificationsOff
-        else -> Icons.Default.RingVolume
+    val silent = ringerMode != AudioManager.RINGER_MODE_NORMAL
+
+    if (!showAllSliders) {
+        // ---- Collapsed: the one slider you probably came for ----
+        // Media if anything is (or just was) playing, otherwise the ringer, which is the
+        // stream the volume keys target when nothing plays.
+        val mediaActive = playing.isNotEmpty() ||
+            runCatching { audioManager.isMusicActive }.getOrDefault(false)
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (mediaActive) {
+                MediaSlider(audioManager = audioManager, onChange = onChange)
+            } else {
+                RingSlider(
+                    audioManager = audioManager,
+                    ringerMode = ringerMode,
+                    onSetRinger = { setRinger(it) },
+                    onChange = onChange
+                )
+            }
+            ModeButton(
+                Icons.Default.KeyboardArrowDown,
+                stringResource(R.string.compact_show_sliders),
+                false
+            ) {
+                showAllSliders = true
+                // Expanding counts as activity, otherwise the panel can hide itself right
+                // after you opened it up.
+                onChange?.invoke()
+            }
+        }
+        return
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // ---- Sound mode + DND ----
+        // ---- Header: sound mode + DND on the left, actions on the right ----
         Row(
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
@@ -480,6 +617,18 @@ fun CompactVolumePanel(
                     Icons.Default.DoNotDisturbOn, stringResource(R.string.mode_dnd), dndOn
                 ) { toggleDnd() }
             }
+
+            Spacer(Modifier.weight(1f))
+
+            ModeButton(
+                Icons.Default.Speaker, stringResource(R.string.compact_output), false
+            ) { if (openOutputSwitcher(context)) onCloseRequest() }
+            ModeButton(
+                Icons.Default.UnfoldMore, stringResource(R.string.compact_expand), false
+            ) { onExpand() }
+            ModeButton(
+                Icons.Default.SettingsIcon, stringResource(R.string.compact_sound_settings), false
+            ) { if (openSoundSettings(context)) onCloseRequest() }
         }
 
         // ---- Sliders ----
@@ -488,38 +637,25 @@ fun CompactVolumePanel(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.Bottom
         ) {
-            VerticalStreamSlider(
-                streamType = AudioManager.STREAM_RING,
-                icon = Icons.Default.RingVolume,
-                name = stringResource(R.string.stream_ring),
+            RingSlider(
                 audioManager = audioManager,
-                onChange = onChange,
-                iconOverride = ringIcon,
-                // Tap the ring icon: sound -> vibrate -> silent -> sound (like Samsung)
-                onIconClickOverride = {
-                    setRinger(
-                        when (ringerMode) {
-                            AudioManager.RINGER_MODE_NORMAL -> AudioManager.RINGER_MODE_VIBRATE
-                            AudioManager.RINGER_MODE_VIBRATE -> AudioManager.RINGER_MODE_SILENT
-                            else -> AudioManager.RINGER_MODE_NORMAL
-                        }
-                    )
-                }
+                ringerMode = ringerMode,
+                onSetRinger = { setRinger(it) },
+                onChange = onChange
             )
             VerticalStreamSlider(
                 streamType = AudioManager.STREAM_NOTIFICATION,
                 icon = Icons.Default.NotificationsNone,
                 name = stringResource(R.string.stream_notification),
                 audioManager = audioManager,
-                onChange = onChange
+                onChange = onChange,
+                dimmed = silent,
+                forceZero = silent,
+                onRaiseFromZero = { setRinger(AudioManager.RINGER_MODE_NORMAL) },
+                // Linked both ways, so the pair stays in step whichever one you grab.
+                linkedStreamType = AudioManager.STREAM_RING
             )
-            VerticalStreamSlider(
-                streamType = AudioManager.STREAM_MUSIC,
-                icon = Icons.AutoMirrored.Filled.VolumeUp,
-                name = stringResource(R.string.compact_media),
-                audioManager = audioManager,
-                onChange = onChange
-            )
+            MediaSlider(audioManager = audioManager, onChange = onChange)
             if (showAlarm) {
                 VerticalStreamSlider(
                     streamType = AudioManager.STREAM_ALARM,
@@ -533,9 +669,8 @@ fun CompactVolumePanel(
             if (playing.isNotEmpty()) {
                 Box(
                     Modifier
-                        .padding(bottom = 42.dp)
                         .width(1.dp)
-                        .height(150.dp)
+                        .height(TRACK_HEIGHT)
                         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
                 )
             }
@@ -545,29 +680,6 @@ fun CompactVolumePanel(
                     VerticalAppSlider(app, onChange)
                 }
             }
-        }
-
-        // ---- Output + show all ----
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            AssistChip(
-                onClick = {
-                    if (openOutputSwitcher(context)) onCloseRequest()
-                },
-                label = { Text(stringResource(R.string.compact_output)) },
-                leadingIcon = {
-                    Icon(Icons.Default.Speaker, contentDescription = null, Modifier.size(18.dp))
-                }
-            )
-            AssistChip(
-                onClick = onExpand,
-                label = { Text(stringResource(R.string.compact_expand)) },
-                leadingIcon = {
-                    Icon(Icons.Default.UnfoldMore, contentDescription = null, Modifier.size(18.dp))
-                }
-            )
         }
     }
 }

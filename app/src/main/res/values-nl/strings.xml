@@ -71,4 +71,6 @@
     <string name="settings_call_pause_needs_access">Heeft meldingstoegang nodig om je muziek-apps te bedienen</string>
     <string name="settings_call_grant">Toegang geven</string>
     <string name="settings_call_pause_ring">Al pauzeren tijdens overgaan</string>
+    <string name="compact_show_sliders">Alle volumes tonen</string>
+    <string name="compact_sound_settings">Geluidsinstellingen</string>
 </resources>

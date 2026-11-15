@@ -134,4 +134,6 @@
     <string name="settings_call_pause_needs_access">Needs notification access to control your music apps</string>
     <string name="settings_call_grant">Grant access</string>
     <string name="settings_call_pause_ring">Already pause while ringing</string>
+    <string name="compact_show_sliders">Show all volumes</string>
+    <string name="compact_sound_settings">Sound settings</string>
 </resources>
