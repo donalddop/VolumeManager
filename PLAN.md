@@ -49,6 +49,7 @@ Wat nog niet geïmplementeerd is (uit de README, ter inspiratie, niet besloten):
 
 Nieuwste bovenaan, één regel per ronde.
 
+- 2026-11-17 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (vierde ronde op rij). Tree schoon en in sync met origin/main, niets halfafs. Baseline gecontroleerd: assembleDebug en test groen (BUILD SUCCESSFUL).
 - 2026-11-16 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (derde ronde op rij). Tree schoon en in sync met origin/main, niets halfafs. Baseline wel gecontroleerd: assembleDebug en test groen (BUILD SUCCESSFUL).
 - 2026-11-15 (2e ronde) — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde. Wel veilig opgeruimd: ongedateerde duplicaatregel onderaan dit logboek weg (`5d1a97d`), en de regel die daarbij per ongeluk ook uit `Waar de app nu staat` verdween teruggezet (`429f9a7`). assembleDebug en test groen op deze tree.
 - 2026-11-15 — Compact paneel gelijkgetrokken met One UI (`0713c99`): brede trackslider met het icoon in de onderkant (geen bolletje meer), paneel opent ingeklapt met een slider plus chevron, ringslider volgt de tril-/stilstand en is aan meldingen gelinkt, uitvoerkiezer en tandwiel naar de kop. assembleDebug en test groen; uiterlijk en belgedrag niet op een toestel getest.
