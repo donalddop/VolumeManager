@@ -43,6 +43,9 @@ Wat nog niet geïmplementeerd is (uit de README, ter inspiratie, niet besloten):
   start ze losgekoppeld (`Start-Process powershell`) met een sentinel-bestand dat je daarna pollt,
   niet wachten binnen één call.
 - Gedrag op een echt toestel kan vanaf hier niet getest worden — dat eerlijk benoemen, nooit "werkt" zeggen.
+- Commit-messages BOM-vrij schrijven: `Set-Content -Encoding utf8` zet in PowerShell 5.1 een BOM
+  voor de eerste regel, die dan in de commit-titel belandt (zie `c23f4c8` en `a5fe189`).
+  Gebruik `git commit -m` of `[IO.File]::WriteAllText($p,$s,(New-Object System.Text.UTF8Encoding $false))`.
 - Pushen naar `origin`. Eén onderwerp per ronde; een gemiste dag wordt niet ingehaald.
 
 ## Logboek
