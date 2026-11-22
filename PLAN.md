@@ -42,6 +42,9 @@ Wat nog niet geïmplementeerd is (uit de README, ter inspiratie, niet besloten):
 - Gradle-builds duren lang en de verbinding met de pc knipt rond een minuut af:
   start ze losgekoppeld (`Start-Process powershell`) met een sentinel-bestand dat je daarna pollt,
   niet wachten binnen één call.
+- De sentinel moet de exit-code uit een scriptbestand schrijven, niet uit een Start-Process-argumentstring:
+  daarin wordt `$LASTEXITCODE` ge-escaped en blijft de sentinel leeg (zie de ronde van 2026-11-21).
+  Werkende vorm: script naar een .ps1 schrijven met `[IO.File]::WriteAllText`, dan `Start-Process powershell -ArgumentList '-File',$p`.
 - Gedrag op een echt toestel kan vanaf hier niet getest worden — dat eerlijk benoemen, nooit "werkt" zeggen.
 - Commit-messages BOM-vrij schrijven: `Set-Content -Encoding utf8` zet in PowerShell 5.1 een BOM
   voor de eerste regel, die dan in de commit-titel belandt (zie `c23f4c8` en `a5fe189`).
@@ -52,6 +55,7 @@ Wat nog niet geïmplementeerd is (uit de README, ter inspiratie, niet besloten):
 
 Nieuwste bovenaan, één regel per ronde.
 
+- 2026-11-22 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (negende ronde op rij). Tree schoon en in sync met origin/main, geen stashes, niets halfafs. Baseline groen: assembleDebug en test BUILD SUCCESSFUL in 16s, en de sentinel klopte dit keer (exit=0) doordat het buildscript eerst naar een .ps1-bestand gaat in plaats van als argumentstring aan Start-Process; huisregel daarover toegevoegd. Opnieuw gevraagd of hij deze dagelijkse ronde wil pauzeren tot hij zelf iets vraagt; zonder zijn antwoord blijft de taak staan.
 - 2026-11-21 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (achtste ronde op rij). Tree schoon en in sync met origin/main, geen stashes, niets halfafs. Baseline gecontroleerd: assembleDebug en test groen (BUILD SUCCESSFUL in 15s). Let op: de exit-code-sentinel bleef leeg doordat LASTEXITCODE in de Start-Process-argumentstring werd ge-escaped en dus niet expandeerde; het buildlog is hier het bewijs, niet de sentinel. Ook gevraagd of hij deze dagelijkse ronde wil pauzeren tot hij zelf weer iets vraagt; zonder zijn antwoord blijft de taak staan.
 - 2026-11-20 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (zevende ronde op rij). Tree schoon en in sync met origin/main, niets halfafs, geen stashes. Baseline gecontroleerd: assembleDebug en test groen (BUILD SUCCESSFUL in 12s, exit 0). Zeven stille rondes op rij en het laatste echte codewerk is van 15-11: deze dagelijkse ronde pauzeren tot Donald zelf weer iets vraagt lijkt nu verstandiger dan doorgaan.
 - 2026-11-19 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (zesde ronde op rij). Tree schoon en in sync met origin/main, niets halfafs, geen stashes. Baseline gecontroleerd: assembleDebug en test groen (BUILD SUCCESSFUL in 14s, exit 0). Zes stille rondes op rij — pauzeren van deze dagelijkse ronde blijft een reële optie.
