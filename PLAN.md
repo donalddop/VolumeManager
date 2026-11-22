@@ -49,6 +49,9 @@ Wat nog niet geïmplementeerd is (uit de README, ter inspiratie, niet besloten):
 - Commit-messages BOM-vrij schrijven: `Set-Content -Encoding utf8` zet in PowerShell 5.1 een BOM
   voor de eerste regel, die dan in de commit-titel belandt (zie `c23f4c8` en `a5fe189`).
   Gebruik `git commit -m` of `[IO.File]::WriteAllText($p,$s,(New-Object System.Text.UTF8Encoding $false))`.
+- Elke ronde eindigt met een blok `## Nodig van Donald`: genummerde actiepunten die alleen hij kan
+  afhandelen (keuze, oordeel, iets op een toestel testen), met tussen haakjes wat er gebeurt als hij
+  niets zegt. Niets nodig? Dan letterlijk "Niets - je hoeft nu niets te doen." Zo gevraagd op 22-11-2026.
 - Pushen naar `origin`. Eén onderwerp per ronde; een gemiste dag wordt niet ingehaald.
 
 ## Logboek
