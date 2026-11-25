@@ -49,6 +49,13 @@ Wat nog niet geïmplementeerd is (uit de README, ter inspiratie, niet besloten):
 - Commit-messages BOM-vrij schrijven: `Set-Content -Encoding utf8` zet in PowerShell 5.1 een BOM
   voor de eerste regel, die dan in de commit-titel belandt (zie `c23f4c8` en `a5fe189`).
   Gebruik `git commit -m` of `[IO.File]::WriteAllText($p,$s,(New-Object System.Text.UTF8Encoding $false))`.
+- Niet-ASCII in een PowerShell-commando komt via de MCP-route Latin-1-gedecodeerd aan: een letterlijke
+  em dash belandt dubbel gecodeerd in het bestand. Bouw zulke tekens in het script op met
+  ([char]0x2014).ToString() en controleer na het schrijven de codepoints, niet de console-weergave
+  (die rendert soms Latin-1) (ronde 2026-11-25).
+- String.Replace(string, char) kiest in PowerShell de (char,char)-overload: een string van meer dan een
+  teken geeft dan $null terug en WriteAllText schrijft het bestand leeg. Zo liep PLAN.md op 2026-11-25
+  even leeg (hersteld met git checkout). Geef twee strings mee en controleer dat de nieuwe lengte groeide.
 - Elke ronde eindigt met een blok `## Nodig van Donald`: genummerde actiepunten die alleen hij kan
   afhandelen (keuze, oordeel, iets op een toestel testen), met tussen haakjes wat er gebeurt als hij
   niets zegt. Niets nodig? Dan letterlijk "Niets - je hoeft nu niets te doen." Zo gevraagd op 22-11-2026.
@@ -59,6 +66,7 @@ Wat nog niet geïmplementeerd is (uit de README, ter inspiratie, niet besloten):
 
 Nieuwste bovenaan, één regel per ronde.
 
+- 2026-11-25 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (twaalfde ronde op rij). Tree schoon en in sync met origin/main op 9ec9159, geen stashes, niets halfafs. Baseline groen: assembleDebug en test BUILD SUCCESSFUL in 12s, sentinel exit=0 via de .ps1-route uit de huisregels; buildscript, log en sentinel stonden in de TEMP-map, dus de tree bleef schoon. Laatste echte codewerk blijft 15-11; twaalf stille rondes op rij — voorstel blijft deze dagelijkse ronde te pauzeren tot Donald zelf iets vraagt.
 - 2026-11-24 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (elfde ronde op rij). Tree schoon en in sync met origin/main op 0d3ad7d, geen stashes, niets halfafs. Baseline groen: assembleDebug en test BUILD SUCCESSFUL in 16s, sentinel exit=0 via de .ps1-route uit de huisregels; buildscript, log en sentinel stonden in de TEMP-map, dus de tree bleef schoon. Laatste echte codewerk blijft 15-11; opnieuw voorgesteld deze dagelijkse ronde te pauzeren tot Donald zelf iets vraagt.
 - 2026-11-23 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (tiende ronde op rij). Tree schoon en in sync met origin/main op 3b452cd, geen stashes, niets halfafs. Baseline groen: assembleDebug en test BUILD SUCCESSFUL in 13s, sentinel exit=0 via de .ps1-route uit de huisregels. Wel een misstap: het sentinel-mapje .build-sentinel stond in de repo en is niet ge-ignoreerd, dus de tree was tijdelijk vuil; na de build verwijderd en huisregel toegevoegd om zulke scratch-bestanden buiten de repo te zetten. Laatste echte codewerk blijft 15-11; opnieuw voorgesteld deze dagelijkse ronde te pauzeren tot Donald zelf iets vraagt.
 - 2026-11-22 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (negende ronde op rij). Tree schoon en in sync met origin/main, geen stashes, niets halfafs. Baseline groen: assembleDebug en test BUILD SUCCESSFUL in 16s, en de sentinel klopte dit keer (exit=0) doordat het buildscript eerst naar een .ps1-bestand gaat in plaats van als argumentstring aan Start-Process; huisregel daarover toegevoegd. Opnieuw gevraagd of hij deze dagelijkse ronde wil pauzeren tot hij zelf iets vraagt; zonder zijn antwoord blijft de taak staan.
