@@ -60,12 +60,17 @@ Wat nog niet geïmplementeerd is (uit de README, ter inspiratie, niet besloten):
   afhandelen (keuze, oordeel, iets op een toestel testen), met tussen haakjes wat er gebeurt als hij
   niets zegt. Niets nodig? Dan letterlijk "Niets - je hoeft nu niets te doen." Zo gevraagd op 22-11-2026.
 - Buildscripts, sentinels en ander scratch-materiaal buiten de repo zetten (bijv. in de TEMP-map): .build-sentinel in de projectmap maakte de tree vuil omdat het niet in .gitignore staat (ronde 2026-11-23).
+- Lezen moet ook via [IO.File]::ReadAllText: Get-Content -Raw leest in PowerShell 5.1 een UTF-8-bestand
+  zonder BOM als Windows-1252, waardoor een em dash dubbel gecodeerd in het bestand belandt.
+  Zo ging het mis in de ronde van 2026-11-27 (hersteld met git checkout). Controleer na het schrijven
+  altijd de codepoints op 0xC3, 0xE2 en 0xFFFD, niet de console-weergave.
 - Pushen naar `origin`. Eén onderwerp per ronde; een gemiste dag wordt niet ingehaald.
 
 ## Logboek
 
 Nieuwste bovenaan, één regel per ronde.
 
+- 2026-11-27 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (veertiende ronde op rij). Tree schoon en in sync met origin/main op 94c2982, geen stashes, niets halfafs. Baseline groen: assembleDebug en test BUILD SUCCESSFUL in 13s, sentinel exit=0 via de .ps1-route uit de huisregels; script, log en sentinel stonden in de TEMP-map, dus de tree bleef schoon. Laatste echte codewerk blijft 15-11; veertien stille rondes op rij — voorstel blijft deze dagelijkse ronde te pauzeren tot Donald zelf iets vraagt.
 - 2026-11-26 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (dertiende ronde op rij). Tree schoon en in sync met origin/main op 66f7f90, geen stashes, niets halfafs. Baseline groen: assembleDebug en test BUILD SUCCESSFUL in 14s, sentinel exit=0 via de .ps1-route uit de huisregels; script, log en sentinel stonden in de TEMP-map, dus de tree bleef schoon. Laatste echte codewerk blijft 15-11; dertien stille rondes op rij — voorstel blijft deze dagelijkse ronde te pauzeren tot Donald zelf iets vraagt.
 - 2026-11-25 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (twaalfde ronde op rij). Tree schoon en in sync met origin/main op 9ec9159, geen stashes, niets halfafs. Baseline groen: assembleDebug en test BUILD SUCCESSFUL in 12s, sentinel exit=0 via de .ps1-route uit de huisregels; buildscript, log en sentinel stonden in de TEMP-map, dus de tree bleef schoon. Laatste echte codewerk blijft 15-11; twaalf stille rondes op rij — voorstel blijft deze dagelijkse ronde te pauzeren tot Donald zelf iets vraagt.
 - 2026-11-24 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (elfde ronde op rij). Tree schoon en in sync met origin/main op 0d3ad7d, geen stashes, niets halfafs. Baseline groen: assembleDebug en test BUILD SUCCESSFUL in 16s, sentinel exit=0 via de .ps1-route uit de huisregels; buildscript, log en sentinel stonden in de TEMP-map, dus de tree bleef schoon. Laatste echte codewerk blijft 15-11; opnieuw voorgesteld deze dagelijkse ronde te pauzeren tot Donald zelf iets vraagt.
