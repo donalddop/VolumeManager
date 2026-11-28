@@ -73,4 +73,6 @@
     <string name="settings_call_pause_ring">Al pauzeren tijdens overgaan</string>
     <string name="compact_show_sliders">Alle volumes tonen</string>
     <string name="compact_sound_settings">Geluidsinstellingen</string>
+    <string name="settings_call_keep_headset">Doorspelen met koptelefoon op</string>
+    <string name="settings_call_keep_headset_desc">Muziek speelt door tijdens gesprekken als je een koptelefoon of headset draagt; pauzeren doe je zelf</string>
 </resources>

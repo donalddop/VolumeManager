@@ -2,6 +2,7 @@ package moe.chensi.volume.calls
 
 import android.content.ComponentName
 import android.content.Context
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
@@ -75,12 +76,30 @@ class CallMediaPauser(private val context: Context, private val settings: AppSet
         if (callActive && !inCall) {
             inCall = true
             handler.removeCallbacksAndMessages(null)
-            pauseAll()
+            if (settings.callKeepPlayingWithHeadset.value && usingHeadset()) {
+                // With headphones on the user wants to decide himself (he can still press pause)
+                Log.i(TAG, "Call started with a headset, leaving media alone")
+            } else {
+                pauseAll()
+            }
         } else if (mode == AudioManager.MODE_NORMAL) {
             if (inCall) guardAfterCall()
             inCall = false
             playingBeforeCall.clear()
         }
+    }
+
+    /**
+     * Is the user wearing something personal (headphones / headset / hearing aid)?
+     * First choice is the device the call audio is routed to (exact, but Android may set it a
+     * moment after the mode change). Fallback: a connected output that has a microphone profile.
+     * Plain A2DP is ignored on purpose: a Bluetooth speaker like a JBL is A2DP-only, and music on
+     * a room speaker during a call is exactly what should still be paused.
+     */
+    private fun usingHeadset(): Boolean {
+        val callDevice = runCatching { audioManager.communicationDevice }.getOrNull()
+        if (callDevice != null && callDevice.type in HEADSET_TYPES) return true
+        return audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any { it.type in HEADSET_TYPES }
     }
 
     private fun pauseAll() {
@@ -111,5 +130,14 @@ class CallMediaPauser(private val context: Context, private val settings: AppSet
 
     companion object {
         private const val TAG = "CallMediaPauser"
+
+        private val HEADSET_TYPES = setOf(
+            AudioDeviceInfo.TYPE_WIRED_HEADSET,
+            AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+            AudioDeviceInfo.TYPE_USB_HEADSET,
+            AudioDeviceInfo.TYPE_BLUETOOTH_SCO,   // classic BT headset with a mic (HFP)
+            AudioDeviceInfo.TYPE_BLE_HEADSET,     // LE Audio headset
+            AudioDeviceInfo.TYPE_HEARING_AID,
+        )
     }
 }

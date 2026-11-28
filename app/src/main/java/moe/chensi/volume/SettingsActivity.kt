@@ -299,6 +299,13 @@ class SettingsActivity : ComponentActivity() {
                         item {
                             BoolRow(stringResource(R.string.settings_call_pause_ring), null, s.callPauseOnRing)
                         }
+                        item {
+                            BoolRow(
+                                stringResource(R.string.settings_call_keep_headset),
+                                stringResource(R.string.settings_call_keep_headset_desc),
+                                s.callKeepPlayingWithHeadset
+                            )
+                        }
 
                         // ---------- Floating button ----------
                         item { Section(stringResource(R.string.settings_section_floating)) }

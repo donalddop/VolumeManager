@@ -136,4 +136,6 @@
     <string name="settings_call_pause_ring">Already pause while ringing</string>
     <string name="compact_show_sliders">Show all volumes</string>
     <string name="compact_sound_settings">Sound settings</string>
+    <string name="settings_call_keep_headset">Keep playing with headphones on</string>
+    <string name="settings_call_keep_headset_desc">Music continues during calls when you wear headphones or a headset; you can pause it yourself</string>
 </resources>

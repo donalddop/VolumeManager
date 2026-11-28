@@ -97,6 +97,8 @@ class AppSettings(private val prefs: SharedPreferences) {
     val callPauseMedia = BoolSetting("call_pause_media", true)
     /** Already pause while the phone is ringing (otherwise only once you pick up). */
     val callPauseOnRing = BoolSetting("call_pause_on_ring", false)
+    /** With headphones / a headset on, keep the music playing: the user pauses it himself if needed. */
+    val callKeepPlayingWithHeadset = BoolSetting("call_keep_playing_with_headset", true)
 
     // ---- Floating button ----
     /** Opacity of the floating button when tucked against the edge (original: 50). */
@@ -108,7 +110,7 @@ class AppSettings(private val prefs: SharedPreferences) {
         panelBackgroundPct, panelBlur, panelLayout, compactShowAlarm, panelPlayingGraceSec, panelHideOnOutsideTouch,
         keysIgnoreCamera, keysIgnoreScreenOff, keysIgnoreLockScreen, keysIgnoreInCall, keysFirstPressAdjusts,
         keysAlwaysMedia, keysRepeatInitialDelayMs, keysRepeatIntervalMs,
-        floatingCollapsedOpacityPct, callPauseMedia, callPauseOnRing,
+        floatingCollapsedOpacityPct, callPauseMedia, callPauseOnRing, callKeepPlayingWithHeadset,
     )
 
     fun resetAll() {

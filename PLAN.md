@@ -21,7 +21,7 @@ Werkend en in gebruik. Opgebouwd bovenop de upstream-app:
 - Compact paneel in One UI-stijl: brede tracksliders met het icoon in de track, opent ingeklapt met een chevron, ringslider volgt de tril-/stilstand en is aan meldingen gelinkt, uitvoerkiezer en tandwiel in de kop (`compose/CompactVolumePanel.kt`)
 - Samsung-achtig geluidspaneel: sound/vibrate/silent, DND, ring/notificatie/media (`compose/SystemVolumePanel.kt`)
 - Quick Settings-tile als ingang (`QuickSettingsTileService.kt`)
-- Media pauzeren tijdens gesprekken en pauze houden daarna (`calls/CallMediaPauser.kt`, `calls/MediaListenerService.kt`)
+- Media pauzeren tijdens gesprekken en pauze houden daarna, behalve met koptelefoon/headset op (instelbaar) (`calls/CallMediaPauser.kt`, `calls/MediaListenerService.kt`)
 
 ## Waar het naartoe gaat
 
@@ -70,6 +70,7 @@ Wat nog niet geïmplementeerd is (uit de README, ter inspiratie, niet besloten):
 
 Nieuwste bovenaan, één regel per ronde.
 
+- 2026-11-28 — Op Donalds verzoek: muziek blijft doorspelen bij een gesprek als hij een koptelefoon/headset op heeft (call-route of verbonden headset met mic; JBL-achtige A2DP-speaker pauzeert nog wel), nieuwe instelling standaard aan (`CallMediaPauser.usingHeadset`). Ook een interactief prototype voor een nieuw volumepaneel gemaakt (relatief slepen, fijnmodus, landscape bovenin), nog niet in de app gebouwd. Gedrag tijdens echte gesprekken niet op toestel getest.
 - 2026-11-27 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (veertiende ronde op rij). Tree schoon en in sync met origin/main op 94c2982, geen stashes, niets halfafs. Baseline groen: assembleDebug en test BUILD SUCCESSFUL in 13s, sentinel exit=0 via de .ps1-route uit de huisregels; script, log en sentinel stonden in de TEMP-map, dus de tree bleef schoon. Laatste echte codewerk blijft 15-11; veertien stille rondes op rij — voorstel blijft deze dagelijkse ronde te pauzeren tot Donald zelf iets vraagt.
 - 2026-11-26 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (dertiende ronde op rij). Tree schoon en in sync met origin/main op 66f7f90, geen stashes, niets halfafs. Baseline groen: assembleDebug en test BUILD SUCCESSFUL in 14s, sentinel exit=0 via de .ps1-route uit de huisregels; script, log en sentinel stonden in de TEMP-map, dus de tree bleef schoon. Laatste echte codewerk blijft 15-11; dertien stille rondes op rij — voorstel blijft deze dagelijkse ronde te pauzeren tot Donald zelf iets vraagt.
 - 2026-11-25 — Geen code aangeraakt: Donald gevraagd wat hij verbeterd wilde hebben, geen antwoord tijdens de ronde (twaalfde ronde op rij). Tree schoon en in sync met origin/main op 9ec9159, geen stashes, niets halfafs. Baseline groen: assembleDebug en test BUILD SUCCESSFUL in 12s, sentinel exit=0 via de .ps1-route uit de huisregels; buildscript, log en sentinel stonden in de TEMP-map, dus de tree bleef schoon. Laatste echte codewerk blijft 15-11; twaalf stille rondes op rij — voorstel blijft deze dagelijkse ronde te pauzeren tot Donald zelf iets vraagt.
